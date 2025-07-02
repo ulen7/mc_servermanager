@@ -1,56 +1,40 @@
 # Minecraft Server Manager
 
-## ROADMAP
-
 ---
 
-### Stage 1: Local Web Console (Single Server)
+## Stage 1: Script Fortification & Prerequisite Automation
 
-#### Features:
-- View Minecraft server logs (console output)
-- Start/stop/restart server
-- Edit server properties (e.g., memory, mode, max players, seed)
-- Reflect current status (running, stopped, errors)
+**Goal**: Make the mc-deploy-wizard.sh script more robust and self-sufficient by automatically installing its own dependencies on Ubuntu-based systems.
 
-##### Suggested Tech Stack:
-  - Backend: Flask (Python) or Express (Node.js) — fast, simple, and Docker-friendly
-  - Frontend: HTML + minimal JS (Bootstrap or Tailwind)
-  - Access: Local network only (http://host:port)
+### Step 1.1: Add OS and Permission Checks
 
----
+Before attempting any installations, the script must verify it's running in the correct environment and has the necessary permissions.
+-  Action: Modify the start of the script to check for OS compatibility
+-  Action: Check for sudo privileges, as installations will require them.
 
-### Stage 2: Add Dynamic Config Editor
+### Step 1.2: Create a Prerequisite Installation Function
+This function will check for and install Docker, Docker Compose, and rclone.
+Action: Create a new function called install_prerequisites.
+Implementation:
+Docker: Check if the docker command exists. If not, use the official convenience script for installation.
+```
+if ! command -v docker &> /dev/null; then
+    echo "Docker not found. Installing..."
+    curl -fsSL https://get.docker.com -o get-docker.sh
+    sudo sh get-docker.sh
+    sudo usermod -aG docker $USER
+    echo "Docker installed. You may need to log out and log back in for group changes to take effect."
+    rm get-docker.sh
+fi
+```
 
-#### Features:
-- GUI for editing server.properties (and optionally, docker-compose.yml)
-- Save & restart server to apply changes
-- Show live feedback if syntax is wrong
-
----
-
-### Stage 3: Support Multiple Servers
-#### Features:
-- “Add New Server” wizard (name, ports, memory, version, etc.)
-- Each server has its own page with control panel
-- Dynamically generate and launch a new Docker Compose project per server
-
----
-
-### Stage 4: Central Manager & User Auth
-#### Features:
-- Admin login (simple password-based to start)
-
-- Central dashboard of all server instances (statuses, ports, actions)
-
-***Optionally*** run over Tailscale for secure remote access
+Docker Compose: The Docker script now typically includes Docker Compose. Verify its presence.
+```
+if ! docker compose version &> /dev/null; then
+    echo "Docker Compose not found or not working. Please install it manually."
+    exit 1
+fi
+```
 
 ---
-
-### Stage 5: Advanced Features
-- Web-based backup management (launch now, view history)
-- Integration with Geyser auto-config
-- Port conflict detection
-- Resource usage stats (RAM/CPU per container)
-- API endpoints (for automation or mobile app in the future)
-
---- 
+## Stage 2: Web Management Console Development
