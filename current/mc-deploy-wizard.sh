@@ -328,7 +328,9 @@ if [ "$ENABLE_TAILSCALE" == "yes" ]; then
     fi
     
     while true; do
-        read -s -p "Enter your Tailscale Auth Key (will not be displayed): " TS_AUTHKEY
+        read -s -p "Enter your Tailscale OAuth Key (will not be displayed): " TS_AUTHKEY
+        echo ""
+        read -s -p "Enter your Tailscale Tag (will not be displayed): " TS_TAG
         echo
         if [ -z "$TS_AUTHKEY" ]; then
             echo "❌ Auth Key cannot be empty."
@@ -444,7 +446,7 @@ if [ "$ENABLE_TAILSCALE" == "yes" ]; then
     container_name: ${SERVER_NAME}-tailscale-sidecar
     environment:
       - TS_AUTHKEY=\${TS_AUTHKEY}
-      - TS_EXTRA_ARGS=--advertise-tags=tag:minecraft
+      - TS_EXTRA_ARGS=--advertise-tags=tag:${TS_TAG}
       - TS_STATE_DIR=/var/lib/tailscale
       - TS_USERSPACE=false
     volumes:
