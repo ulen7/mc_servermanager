@@ -315,9 +315,11 @@ ENABLE_BACKUPS=$(prompt_yes_no "Enable automatic backups? (y/n) [${DEFAULT_ENABL
 # === Tailscale Prompt & Secure Key Input ===
 ENABLE_TAILSCALE=$(prompt_yes_no "Enable remote access with Tailscale? (y/n) [${DEFAULT_ENABLE_TAILSCALE}]: " "$DEFAULT_ENABLE_TAILSCALE")
 if [ "$ENABLE_TAILSCALE" == "yes" ]; then
+    echo ""
+    echo ""    
     log "INFO" "Tailscale Enabled, setting configuration..."
-    echo "Please generate an Auth Key from your Tailscale Admin Console."
-    echo "Visit: https://tailscale.com/kb/1085/auth-keys"
+    echo "Please generate an OAuth Key from your Tailscale Admin Console."
+    echo "Visit: https://tailscale.com/kb/1282/docker"
     echo "It is recommended to use an Ephemeral, Pre-authorized, and Tagged key."
     
     # Ensure directory exists
