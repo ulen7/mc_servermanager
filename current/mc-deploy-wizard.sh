@@ -424,6 +424,36 @@ if [ "$SERVER_TYPE" == "fabric" ]; then
     MOD_ENV_BLOCK="      MODRINTH_PROJECTS: \"${MODS_LIST}\""
 fi
 
+# Add Tailscale service if enabled
+if [ "$ENABLE_TAILSCALE" == "yes" ]; then
+    # Create tailscale state directory
+    mkdir -p "${SERVER_DIR}/tailscale-state"
+    
+    cat >> "$COMPOSE_FILE" <<EOF
+  tailscale-sidecar:
+    image: tailscale/tailscale:latest
+    hostname: ${SERVER_NAME}
+    container_name: ${SERVER_NAME}-tailscale-sidecar
+    environment:
+      - TS_AUTHKEY=\${TS_AUTHKEY}
+      - TS_EXTRA_ARGS=--advertise-tags=tag:minecraft-server
+      - TS_STATE_DIR=/var/lib/tailscale
+      - TS_USERSPACE=false
+    volumes:
+      - ${SERVER_DIR}/tailscale-state:/var/lib/tailscale
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    cap_add:
+      - net_admin
+    restart: unless-stopped
+    ports:
+      - "${MC_JPORT}:${MC_JPORT}"
+EOF
+    if [ "$USE_GEYSER" == "yes" ]; then
+        echo "      - \"${MC_BPORT}:${MC_BPORT}/udp\"" >> "$COMPOSE_FILE"
+    fi
+fi
+
 # Create the docker-compose.yml file with error handling
 if ! cat > "$COMPOSE_FILE" <<EOF
 services:
@@ -484,36 +514,6 @@ cat >> "$COMPOSE_FILE" <<EOF
     volumes:
       - ${SERVER_DIR}/data:/data
 EOF
-
-# Add Tailscale service if enabled
-if [ "$ENABLE_TAILSCALE" == "yes" ]; then
-    # Create tailscale state directory
-    mkdir -p "${SERVER_DIR}/tailscale-state"
-    
-    cat >> "$COMPOSE_FILE" <<EOF
-  tailscale-sidecar:
-    image: tailscale/tailscale:latest
-    hostname: ${SERVER_NAME}
-    container_name: ${SERVER_NAME}-tailscale-sidecar
-    environment:
-      - TS_AUTHKEY=\${TS_AUTHKEY}
-      - TS_EXTRA_ARGS=--advertise-tags=tag:minecraft-server
-      - TS_STATE_DIR=/var/lib/tailscale
-      - TS_USERSPACE=false
-    volumes:
-      - ${SERVER_DIR}/tailscale-state:/var/lib/tailscale
-    devices:
-      - /dev/net/tun:/dev/net/tun
-    cap_add:
-      - net_admin
-    restart: unless-stopped
-    ports:
-      - "${MC_JPORT}:${MC_JPORT}"
-EOF
-    if [ "$USE_GEYSER" == "yes" ]; then
-        echo "      - \"${MC_BPORT}:${MC_BPORT}/udp\"" >> "$COMPOSE_FILE"
-    fi
-fi
 
 # Verify file was created successfully
 if [ -f "$COMPOSE_FILE" ]; then
