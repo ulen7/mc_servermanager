@@ -15,7 +15,7 @@ set -euo pipefail
 DEFAULT_SERVER_NAME="mc_server"
 DEFAULT_VERSION="1.21"
 DEFAULT_SERVER_TYPE=2
-DEFAULT_MEMORY="4"
+DEFAULT_MEMORY="4G"
 DEFAULT_JPORT="25565"
 DEFAULT_BPORT="19132"
 DEFAULT_IMAGE="itzg/minecraft-server"
@@ -250,7 +250,7 @@ while true; do
     MEMORY="${MEMORY:-$DEFAULT_MEMORY}"
 
     if [[ "$MEMORY" =~ ^[0-9]+$ ]] && (( MEMORY >= 4 && MEMORY <= 32 )); then
-        MEMORY="${MEMORY}"
+        MEMORY="${MEMORY}G"
         log "INFO" "$MEMORY selected for memory"
         break
     else
@@ -417,14 +417,20 @@ COMPOSE_FILE="${SERVER_DIR}/docker-compose.yml"
 # Check if the server type is Fabric to add mods
 if [ "$SERVER_TYPE" == "fabric" ]; then
     MODS_LIST="fabric-api"
-    if [ "$USE_GEYSER" == "yes" ]; then
-        MODS_LIST="${MODS_LIST},geyser-fabric"
-        log "INFO" "Mods added: $MODS_LIST"
-    fi
     MOD_ENV_BLOCK="      MODRINTH_PROJECTS: \"${MODS_LIST}\""
 fi
 
+# Start creation of the docker-compose.yml file with error handling
+if ! cat > "$COMPOSE_FILE" <<EOF
+services:
+EOF
+then
+    log "ERROR" "Failed to create docker-compose.yml"
+    exit 1
+fi
+
 # Add Tailscale service if enabled
+# TO CHANGE TAG SELECTION
 if [ "$ENABLE_TAILSCALE" == "yes" ]; then
     # Create tailscale state directory
     mkdir -p "${SERVER_DIR}/tailscale-state"
@@ -436,7 +442,7 @@ if [ "$ENABLE_TAILSCALE" == "yes" ]; then
     container_name: ${SERVER_NAME}-tailscale-sidecar
     environment:
       - TS_AUTHKEY=\${TS_AUTHKEY}
-      - TS_EXTRA_ARGS=--advertise-tags=tag:minecraft-server
+      - TS_EXTRA_ARGS=--advertise-tags=tag:minecraft
       - TS_STATE_DIR=/var/lib/tailscale
       - TS_USERSPACE=false
     volumes:
@@ -455,8 +461,7 @@ EOF
 fi
 
 # Create the docker-compose.yml file with error handling
-if ! cat > "$COMPOSE_FILE" <<EOF
-services:
+cat >> "$COMPOSE_FILE" <<EOF
   minecraft:
     image: ${IMAGE}
     container_name: ${SERVER_NAME}
@@ -464,10 +469,6 @@ services:
     tty: true
     stdin_open: true
 EOF
-then
-    log "ERROR" "Failed to create docker-compose.yml"
-    exit 1
-fi
 
 # Add network mode for Tailscale
 if [ "$ENABLE_TAILSCALE" == "yes" ]; then
