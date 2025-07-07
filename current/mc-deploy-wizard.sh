@@ -568,6 +568,7 @@ if [ "$LAUNCH_NOW" == "no" ]; then
 fi
 
 # Start the Docker Container
+
 show_progress "Starting the server in the background"
 
 # Use the appropriate docker compose command based on Tailscale configuration
@@ -610,7 +611,7 @@ TIMEOUT=300 # 5 minutes
 SECONDS=0
 DOTS=0
 
-while ! docker logs "$SERVER_NAME" 2>&1 | grep -q "Server marked as running"; do
+while ! docker logs "$SERVER_NAME" 2>&1 | grep -q "Starting remote control"; do
     if [ $SECONDS -gt $TIMEOUT ]; then
         echo ""
         echo "Server did not start within the timeout period."
@@ -632,7 +633,7 @@ echo ""
 echo "Server has initialized successfully!"
 log "INFO" "Server has initialized successfully."
 
-# Configure Geyser with improved timing
+# Configure Geyser / copying floodgate key with improved timing
 if [ "$USE_GEYSER" == "yes" ]; then
     echo ""
     show_progress "Configuring Geyser"
