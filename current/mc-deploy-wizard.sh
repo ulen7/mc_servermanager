@@ -530,13 +530,10 @@ if [ "$ENABLE_TAILSCALE" == "yes" ]; then
     
     cat >> "$COMPOSE_FILE" <<EOF
   geyser:
-    image: itzg/minecraft-geyser:latest
+    image: bmoorman/geyser:latest
     container_name: geyser
-    depends_on:
-      - tailscale-sidecar
+    restart: unless-stopped
     network_mode: "service:tailscale-sidecar"
-    environment:
-      EULA: "TRUE"
     volumes:
       - ${SERVER_DIR}/config/geyser:/config
 EOF
