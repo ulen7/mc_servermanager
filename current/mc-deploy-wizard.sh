@@ -522,6 +522,8 @@ EOF
 
 # Add Geyser container if enabled
 
+#CREATE config.yml in ${SERVER_DIR}/config/geyser
+
 # TO REVIEW
 
 if [ "$ENABLE_TAILSCALE" == "yes" ]; then
@@ -536,10 +538,9 @@ if [ "$ENABLE_TAILSCALE" == "yes" ]; then
     environment:
       EULA: "TRUE"
     volumes:
-      - ./geyser/config:/config
+      - ${SERVER_DIR}/config/geyser:/config
 EOF
-
-
+fi
 
 # Verify file was created successfully
 if [ -f "$COMPOSE_FILE" ]; then
