@@ -420,7 +420,7 @@ COMPOSE_FILE="${SERVER_DIR}/docker-compose.yml"
 
 # Check if the server type is Fabric to add mods
 if [ "$SERVER_TYPE" == "fabric" ]; then
-    MODS_LIST="fabric-api"
+    MODS_LIST="fabric-api, floodgate"
     MOD_ENV_BLOCK="      MODRINTH_PROJECTS: \"${MODS_LIST}\""
 fi
 
@@ -517,7 +517,7 @@ fi
 # Add volumes
 cat >> "$COMPOSE_FILE" <<EOF
     volumes:
-      - ${SERVER_DIR}/data:/data
+      - ${SERVER_DIR}:/data
 EOF
 
 # Verify file was created successfully
