@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minecraft Server Console</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #333;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 1200px;
+            margin: 20px;
+            overflow: hidden;
+            animation: slideIn 0.5s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .header {
+            background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 1px, transparent 1px);
+            background-size: 20px 20px;
+            animation: float 10s linear infinite;
+        }
+
+        @keyframes float {
+            0% { transform: translate(0, 0) rotate(0deg); }
+            100% { transform: translate(-20px, -20px) rotate(360deg); }
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+            position: relative;
+            z-index: 1;
+        }
+
+        .server-status {
+            display: inline-block;
+            padding: 5px 15px;
+            background: rgba(46, 204, 113, 0.2);
+            border: 1px solid #2ecc71;
+            border-radius: 20px;
+            color: #2ecc71;
+            font-weight: bold;
+            margin-top: 10px;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        /* Login Form Styles */
+        .login-container {
+            max-width: 400px;
+            margin: 0 auto;
+            padding: 40px;
+        }
+
+        .login-form {
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        .login-form h2 {
+            color: #2c3e50;
+            margin-bottom: 30px;
+            font-size: 2em;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+            text-align: left;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #555;
+            font-weight: 500;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1em;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+
+        .btn-login {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1em;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+
+        .btn-login:hover {
+            transform: translateY(-2px);
+        }
+
+        .btn-login:active {
+            transform: translateY(0);
+        }
+
+        /* Console Styles */
+        .console-container {
+            padding: 30px;
+            display: none;
+        }
+
+        .console-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+
+        .btn-start {
+            background: #2ecc71;
+            color: white;
+        }
+
+        .btn-stop {
+            background: #e74c3c;
+            color: white;
+        }
+
+        .btn-restart {
+            background: #f39c12;
+            color: white;
+        }
+
+        .btn-clear {
+            background: #95a5a6;
+            color: white;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .server-info {
+            background: #ecf0f1;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+        }
+
+        .info-item {
+            text-align: center;
+        }
+
+        .info-label {
+            font-size: 0.9em;
+            color: #7f8c8d;
+            margin-bottom: 5px;
+        }
+
+        .info-value {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        .console-output {
+            background: #1e1e1e;
+            border-radius: 10px;
+            padding: 20px;
+            height: 400px;
+            overflow-y: auto;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 0.9em;
+            line-height: 1.4;
+            color: #f8f8f2;
+            border: 2px solid #34495e;
+            position: relative;
+        }
+
+        .console-output::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .console-output::-webkit-scrollbar-track {
+            background: #2c3e50;
+            border-radius: 4px;
+        }
+
+        .console-output::-webkit-scrollbar-thumb {
+            background: #3498db;
+            border-radius: 4px;
+        }
+
+        .console-line {
+            margin-bottom: 2px;
+            padding: 2px 0;
+            border-radius: 3px;
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateX(-10px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        .console-line.info { color: #3498db; }
+        .console-line.warn { color: #f39c12; }
+        .console-line.error { color: #e74c3c; }
+        .console-line.success { color: #2ecc71; }
+
+        .command-input {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .command-input input {
+            flex: 1;
+            padding: 10px 15px;
+            border: 2px solid #34495e;
+            border-radius: 8px;
+            background: #2c3e50;
+            color: white;
+            font-family: 'Consolas', 'Monaco', monospace;
+        }
+
+        .command-input input:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+
+        .command-input button {
+            padding: 10px 20px;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background 0.3s ease;
+        }
+
+        .command-input button:hover {
+            background: #2980b9;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #7f8c8d;
+        }
+
+        .logout-btn {
+            background: #e74c3c;
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: background 0.3s ease;
+        }
+
+        .logout-btn:hover {
+            background: #c0392b;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                margin: 10px;
+                border-radius: 10px;
+            }
+
+            .header h1 {
+                font-size: 2em;
+            }
+
+            .console-controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .btn-group {
+                justify-content: center;
+            }
+
+            .info-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎮 Minecraft Server Manager</h1>
+            <p>Professional Server Administration Console</p>
+            <div class="server-status">● Server Online</div>
+        </div>
+
+        <!-- Login Form -->
+        <div id="loginSection" class="login-container">
+            <div class="login-form">
+                <h2>🔐 Admin Login</h2>
+                <form id="loginForm">
+                    <div class="form-group">
+                        <label for="username">Username:</label>
+                        <input type="text" id="username" name="username" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="password">Password:</label>
+                        <input type="password" id="password" name="password" required>
+                    </div>
+                    <button type="submit" class="btn-login">Login to Console</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Console Interface -->
+        <div id="consoleSection" class="console-container">
+            <div class="console-controls">
+                <div class="btn-group">
+                    <button class="btn btn-start" onclick="startServer()">▶️ Start</button>
+                    <button class="btn btn-stop" onclick="stopServer()">⏹️ Stop</button>
+                    <button class="btn btn-restart" onclick="restartServer()">🔄 Restart</button>
+                    <button class="btn btn-clear" onclick="clearConsole()">🗑️ Clear</button>
+                </div>
+                <div class="user-info">
+                    <span>👤 Logged in as: <strong id="currentUser">admin</strong></span>
+                    <button class="logout-btn" onclick="logout()">Logout</button>
+                </div>
+            </div>
+
+            <div class="server-info">
+                <div class="info-grid">
+                    <div class="info-item">
+                        <div class="info-label">Server Status</div>
+                        <div class="info-value" id="serverStatus">Running</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Players Online</div>
+                        <div class="info-value" id="playersOnline">0/20</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Memory Usage</div>
+                        <div class="info-value" id="memoryUsage">2.1GB/4GB</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Uptime</div>
+                        <div class="info-value" id="uptime">2h 34m</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="console-output" id="consoleOutput">
+                <div class="console-line info">[12:34:56] [Server thread/INFO]: Starting minecraft server version 1.21</div>
+                <div class="console-line info">[12:34:57] [Server thread/INFO]: Loading properties</div>
+                <div class="console-line info">[12:34:58] [Server thread/INFO]: Preparing level "world"</div>
+                <div class="console-line success">[12:35:02] [Server thread/INFO]: Done (4.123s)! For help, type "help"</div>
+                <div class="console-line info">[12:35:03] [Server thread/INFO]: Starting remote control</div>
+                <div class="console-line success">[12:35:03] [Server thread/INFO]: Server is ready!</div>
+            </div>
+
+            <div class="command-input">
+                <input type="text" id="commandInput" placeholder="Enter server command..." onkeypress="handleCommandInput(event)">
+                <button onclick="sendCommand()">Send</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Application state
+        let isLoggedIn = false;
+        let consoleLines = [];
+        let serverRunning = true;
+        let startTime = Date.now();
+
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', function() {
+            showLoginForm();
+            startStatusUpdates();
+        });
+
+        // Authentication
+        function showLoginForm() {
+            document.getElementById('loginSection').style.display = 'block';
+            document.getElementById('consoleSection').style.display = 'none';
+        }
+
+        function showConsole() {
+            document.getElementById('loginSection').style.display = 'none';
+            document.getElementById('consoleSection').style.display = 'block';
+        }
+
+        // Login form handler
+        document.getElementById('loginForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            // Simple demo authentication (replace with real auth)
+            if (username === 'admin' && password === 'minecraft') {
+                isLoggedIn = true;
+                document.getElementById('currentUser').textContent = username;
+                showConsole();
+                addConsoleMessage('info', 'Admin logged in successfully');
+                simulateServerActivity();
+            } else {
+                alert('Invalid credentials. Try admin/minecraft');
+            }
+        });
+
+        // Server control functions
+        function startServer() {
+            if (!serverRunning) {
+                serverRunning = true;
+                document.getElementById('serverStatus').textContent = 'Starting...';
+                addConsoleMessage('info', 'Starting server...');
+                
+                setTimeout(() => {
+                    document.getElementById('serverStatus').textContent = 'Running';
+                    addConsoleMessage('success', 'Server started successfully');
+                    startTime = Date.now();
+                }, 2000);
+            } else {
+                addConsoleMessage('warn', 'Server is already running');
+            }
+        }
+
+        function stopServer() {
+            if (serverRunning) {
+                serverRunning = false;
+                document.getElementById('serverStatus').textContent = 'Stopping...';
+                addConsoleMessage('info', 'Stopping server...');
+                
+                setTimeout(() => {
+                    document.getElementById('serverStatus').textContent = 'Stopped';
+                    addConsoleMessage('error', 'Server stopped');
+                    document.getElementById('playersOnline').textContent = '0/20';
+                    document.getElementById('uptime').textContent = '0m';
+                }, 2000);
+            } else {
+                addConsoleMessage('warn', 'Server is already stopped');
+            }
+        }
+
+        function restartServer() {
+            addConsoleMessage('info', 'Restarting server...');
+            stopServer();
+            setTimeout(() => {
+                startServer();
+            }, 3000);
+        }
+
+        // Console management
+        function addConsoleMessage(type, message) {
+            const timestamp = new Date().toLocaleTimeString();
+            const line = document.createElement('div');
+            line.className = `console-line ${type}`;
+            line.textContent = `[${timestamp}] ${message}`;
+            
+            const output = document.getElementById('consoleOutput');
+            output.appendChild(line);
+            output.scrollTop = output.scrollHeight;
+            
+            // Keep only last 100 lines
+            while (output.children.length > 100) {
+                output.removeChild(output.firstChild);
+            }
+        }
+
+        function clearConsole() {
+            document.getElementById('consoleOutput').innerHTML = '';
+            addConsoleMessage('info', 'Console cleared');
+        }
+
+        // Command handling
+        function handleCommandInput(event) {
+            if (event.key === 'Enter') {
+                sendCommand();
+            }
+        }
+
+        function sendCommand() {
+            const input = document.getElementById('commandInput');
+            const command = input.value.trim();
+            
+            if (command) {
+                addConsoleMessage('info', `> ${command}`);
+                
+                // Simulate command responses
+                setTimeout(() => {
+                    switch (command.toLowerCase()) {
+                        case 'list':
+                            addConsoleMessage('info', 'There are 0 of a max of 20 players online:');
+                            break;
+                        case 'help':
+                            addConsoleMessage('info', 'Available commands: list, stop, say, give, gamemode, weather');
+                            break;
+                        case 'stop':
+                            stopServer();
+                            break;
+                        default:
+                            if (command.startsWith('say ')) {
+                                const message = command.substring(4);
+                                addConsoleMessage('info', `[Server] ${message}`);
+                            } else {
+                                addConsoleMessage('error', `Unknown command: ${command}`);
+                            }
+                    }
+                }, 500);
+                
+                input.value = '';
+            }
+        }
+
+        // Status updates
+        function startStatusUpdates() {
+            setInterval(() => {
+                if (serverRunning) {
+                    const uptime = Math.floor((Date.now() - startTime) / 1000);
+                    const hours = Math.floor(uptime / 3600);
+                    const minutes = Math.floor((uptime % 3600) / 60);
+                    
+                    let uptimeText = '';
+                    if (hours > 0) uptimeText += `${hours}h `;
+                    uptimeText += `${minutes}m`;
+                    
+                    document.getElementById('uptime').textContent = uptimeText;
+                    
+                    // Simulate memory usage changes
+                    const memUsage = (2.0 + Math.random() * 0.5).toFixed(1);
+                    document.getElementById('memoryUsage').textContent = `${memUsage}GB/4GB`;
+                }
+            }, 1000);
+        }
+
+        // Simulate server activity
+        function simulateServerActivity() {
+            setInterval(() => {
+                if (serverRunning && Math.random() < 0.1) {
+                    const activities = [
+                        'Saving chunks...',
+                        'Autosave completed',
+                        'Tick rate: 20.0 TPS',
+                        'Garbage collection completed'
+                    ];
+                    const activity = activities[Math.floor(Math.random() * activities.length)];
+                    addConsoleMessage('info', activity);
+                }
+            }, 5000);
+        }
+
+        // Logout
+        function logout() {
+            isLoggedIn = false;
+            showLoginForm();
+            addConsoleMessage('info', 'Admin logged out');
+        }
+
+        // Auto-focus on command input
+        document.addEventListener('click', function(e) {
+            if (isLoggedIn && e.target.closest('.console-container')) {
+                document.getElementById('commandInput').focus();
+            }
+        });
+    </script>
+</body>
+</html>
