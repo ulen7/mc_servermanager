@@ -420,7 +420,11 @@ COMPOSE_FILE="${SERVER_DIR}/docker-compose.yml"
 
 # Check if the server type is Fabric to add mods
 if [ "$SERVER_TYPE" == "fabric" ]; then
-    MODS_LIST="fabric-api, floodgate"
+    MODS_LIST="fabric-api, viaversion,viafabric"
+    if [ "$USE_GEYSER" == "yes" ]; then
+        MODS_LIST="${MODS_LIST},floodgate,skinrestorer"
+        log "INFO" "Mods added: $MODS_LIST"
+    fi
     MOD_ENV_BLOCK="      MODRINTH_PROJECTS: \"${MODS_LIST}\""
 fi
 
@@ -526,16 +530,22 @@ EOF
 
 # TO REVIEW
 
-if [ "$ENABLE_TAILSCALE" == "yes" ]; then
-    
+if [ "$USE_GEYSER" == "yes" ]; then
+    GEYSER_DIR=${SERVER_SER}/config/geyser
     cat >> "$COMPOSE_FILE" <<EOF
   geyser:
     image: bmoorman/geyser:latest
     container_name: geyser
     restart: unless-stopped
-    network_mode: "service:tailscale-sidecar"
-    volumes:
-      - ${SERVER_DIR}/config/geyser:/config
+EOF
+fi
+if [ "$ENABLE_TAILSCALE" == "yes" ]; then
+    echo "    network_mode: \"service:tailscale-sidecar\"" >> "$COMPOSE_FILE"
+fi
+if [ "$USE_GEYSER" == "yes" ]; then
+    cat >> "$COMPOSE_FILE" <<EOF
+  volumes:
+    - ${GEYSER_DIR}:/var/lib/geyser
 EOF
 fi
 
@@ -695,7 +705,7 @@ if [ "$ENABLE_BACKUPS" == "yes" ]; then
             show_progress "Installing rclone"
             sudo apt-get update && sudo apt-get install -y rclone
             if ! command -v rclone &> /dev/null; then
-                 echo "✗ rclone installation failed. Install manually."
+                 echo "rclone installation failed. Install manually."
                  log "ERROR" "Failed to install rclone"
                  exit 1
             fi
