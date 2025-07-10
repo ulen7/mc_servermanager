@@ -831,7 +831,7 @@ mkdir -p "\$BACKUP_DIR"
 
 # --- Stop server temporarily for consistent backup ---
 log_backup "Stopping server for backup..."
-docker stop $WORLD_NAME
+docker stop "\$WORLD_NAME"
 
 # --- Create Compressed Backup ---
 log_backup "Creating compressed backup..."
@@ -839,13 +839,13 @@ if tar -czf "\${BACKUP_DIR}/\${BACKUP_NAME}" -C "\$WORLD_DATA_DIR" .; then
     log_backup "Successfully created local backup: \$BACKUP_NAME"
 else
     log_backup "ERROR: Failed to create tarball."
-    docker start $WORLD_NAME
+    docker start "\$WORLD_NAME"
     exit 1
 fi
 
 # --- Restart server ---
 log_backup "Restarting server..."
-docker start $WORLD_NAME
+docker start "\$WORLD_NAME"
 
 # --- Upload to Cloud Storage ---
 log_backup "Uploading to \${REMOTE_NAME}..."
