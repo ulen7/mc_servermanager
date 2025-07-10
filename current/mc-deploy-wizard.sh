@@ -831,7 +831,7 @@ mkdir -p "\$BACKUP_DIR"
 
 # --- Stop server temporarily for consistent backup ---
 log_backup "Stopping server for backup..."
-docker compose -f "${SERVER_DIR}/docker-compose.yml" stop minecraft
+docker stop $WORLD_NAME
 
 # --- Create Compressed Backup ---
 log_backup "Creating compressed backup..."
@@ -839,13 +839,13 @@ if tar -czf "\${BACKUP_DIR}/\${BACKUP_NAME}" -C "\$WORLD_DATA_DIR" .; then
     log_backup "Successfully created local backup: \$BACKUP_NAME"
 else
     log_backup "ERROR: Failed to create tarball."
-    docker compose -f "${SERVER_DIR}/docker-compose.yml" start minecraft
+    docker start $WORLD_NAME
     exit 1
 fi
 
 # --- Restart server ---
 log_backup "Restarting server..."
-docker compose -f "${SERVER_DIR}/docker-compose.yml" start minecraft
+docker start $WORLD_NAME
 
 # --- Upload to Cloud Storage ---
 log_backup "Uploading to \${REMOTE_NAME}..."
@@ -872,7 +872,7 @@ EOF
     echo "Backup script created at ${BACKUP_SCRIPT_PATH}"
 
     # --- Prepare Cron Job Instruction ---
-    CRON_JOB="0 3 * * * ${BACKUP_SCRIPT_PATH} >> ${SCRIPTS_DIR}/cron.log 2>&1"
+    CRON_JOB="0 3 * * * ${BACKUP_SCRIPT_PATH} >> $LOG_FILE 2>&1"
     
     # Store the cron instruction in a variable to display at the end
     BACKUP_INSTRUCTION=$(cat <<EOF
@@ -900,4 +900,4 @@ fi
 
 echo "---"
 log "All taks completed"
-echo "All tasks complete. Enjoy your server!"
+echo "All tasks complete. Enjoy!"
