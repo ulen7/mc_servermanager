@@ -330,7 +330,7 @@ if [ "$ENABLE_TAILSCALE" == "yes" ]; then
     while true; do
         read -s -p "Enter your Tailscale OAuth Key (will not be displayed): " TS_AUTHKEY
         echo ""
-        read -s -p "Enter your Tailscale Tag (will not be displayed): " TS_TAG
+        read -p "Enter your Tailscale Tag (will not be displayed): " TS_TAG
         echo
         if [ -z "$TS_AUTHKEY" ]; then
             echo "❌ Auth Key cannot be empty."
@@ -340,7 +340,7 @@ if [ "$ENABLE_TAILSCALE" == "yes" ]; then
         log "INFO" "Validating Tailscale Auth Key format..."
         show_progress "Validating key format"
         
-        if [[ ! "$TS_AUTHKEY" =~ ^tskey-auth-[a-zA-Z0-9_-]+$ ]]; then
+        if [[ ! "$TS_AUTHKEY" =~ ^tskey-client-[a-zA-Z0-9_-]+$ ]]; then
             echo "❌ Invalid Auth Key format. Please check your key."
             log "WARN" "Auth Key format is invalid (length: ${#TS_AUTHKEY})"
             continue
