@@ -514,8 +514,8 @@ if [ -n "$MC_SEED" ]; then
 fi
 
 # Add mod environment block if present
-if [ -n "$MOD_ENV_BLOCK" ]; then
-    echo "      $MOD_ENV_BLOCK" >> "$COMPOSE_FILE"
+if [ -n "$_BLOCK" ]; then
+    echo "$MOD_ENV_BLOCK" >> "$COMPOSE_FILE"
 fi
 
 # Add volumes
