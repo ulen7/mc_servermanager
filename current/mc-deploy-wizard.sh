@@ -796,8 +796,8 @@ if [ "$ENABLE_BACKUPS" == "yes" ]; then
     log "INFO" "Generating backup script"
     show_progress "Generating backup script"
     
-    SCRIPTS_DIR="$SERVER_DIR/scripts"
-    BACKUP_SCRIPT_PATH="$SCRIPTS_DIR/backup.sh"
+    SCRIPTS_DIR="$HOME/scripts"
+    BACKUP_SCRIPT_PATH="$SCRIPTS_DIR/backup_$SERVER_NAME.sh"
     LOCAL_BACKUP_PATH="$HOME/minecraft_backups/$SERVER_NAME"
     
     mkdir -p "$SCRIPTS_DIR"
@@ -808,14 +808,14 @@ if [ "$ENABLE_BACKUPS" == "yes" ]; then
 
 # --- Configuration ---
 WORLD_NAME="${SERVER_NAME}"
-WORLD_DATA_DIR="${SERVER_DIR}"
+WORLD_DATA_DIR="${SERVER_DIR}/\world"
 BACKUP_DIR="${LOCAL_BACKUP_PATH}"
 TIMESTAMP=\$(date +'%Y-%m-%d_%H-%M')
 BACKUP_NAME="\${WORLD_NAME}_\${TIMESTAMP}.tar.gz"
 REMOTE_NAME="${RCLONE_REMOTE}"
 REMOTE_PATH="minecraft_backups/\${WORLD_NAME}"
-LOG_FILE="${SCRIPTS_DIR}/backup.log"
-MAX_LOCAL_BACKUPS=7
+LOG_FILE="${SCRIPTS_DIR}/backup_$SERVER_NAME.log"
+MAX_LOCAL_BACKUPS=4
 MAX_REMOTE_BACKUPS=4
 
 # --- Logging ---
@@ -868,14 +868,14 @@ EOF
     echo "Backup script created at ${BACKUP_SCRIPT_PATH}"
 
     # --- Prepare Cron Job Instruction ---
-    CRON_JOB="0 3 * * 0 TZ=America/Toronto ${BACKUP_SCRIPT_PATH} >> ${SCRIPTS_DIR}/cron.log 2>&1"
+    CRON_JOB="0 3 * * * ${BACKUP_SCRIPT_PATH} >> ${SCRIPTS_DIR}/cron.log 2>&1"
     
     # Store the cron instruction in a variable to display at the end
     BACKUP_INSTRUCTION=$(cat <<EOF
 
 ---
 backups:
-   To automate your backups, add the following line to your system's crontab.
+   To automate your backups, add the following line to your system's crontab (with this command a backup will be made everyday at 3 AM).
    Run 'crontab -e' and paste this line at the bottom:
 
    ${CRON_JOB}
