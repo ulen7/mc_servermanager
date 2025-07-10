@@ -4,13 +4,13 @@
 
 ---
 
-An interactive Bash script that helps you configure and deploy a fully customized Minecraft server using Docker Compose — with support for **Java**, **Bedrock (via Geyser)**, **Fabric mods**, **Tailscale VPN**, **automatic backups to Google Drive**, and optional **RCON web interface**.
+An interactive Bash script that helps you configure and deploy a fully customized Minecraft server using Docker Compose — with support for **Java**, **Bedrock (via Geyser)**, **Fabric mods**, **Tailscale VPN**, **automatic backups to Google Drive**. Design to work on an Ubuntu server machine (or other Debian based OS). 
 
 ---
 
 ## Features
 
-- 🧱 Supports **Vanilla**, **Fabric**, **Spigot**, and **Paper**
+- 🧱 Supports **Vanilla**, **Fabric**, and **Paper**
 - 🌉 Optional **Geyser** for Bedrock Edition cross-play
 - 📦 **Fabric mod installation** via Modrinth (with future manual mod support)
 - 🔒 **Tailscale VPN** support for remote play on a private network
