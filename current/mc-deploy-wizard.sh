@@ -330,7 +330,7 @@ if [ "$ENABLE_TAILSCALE" == "yes" ]; then
     while true; do
         read -s -p "Enter your Tailscale OAuth Key (will not be displayed): " TS_AUTHKEY
         echo ""
-        read -p "Enter your Tailscale Tag (will not be displayed): " TS_TAG
+        read -p "Enter your Tailscale Tag: " TS_TAG
         echo
         if [ -z "$TS_AUTHKEY" ]; then
             echo "❌ Auth Key cannot be empty."
@@ -444,7 +444,7 @@ if [ "$ENABLE_TAILSCALE" == "yes" ]; then
     mkdir -p "${SERVER_DIR}/tailscale-state"
     
     cat >> "$COMPOSE_FILE" <<EOF
-  tailscale-sidecar:
+  ${SERVER_NAME}-tailscale-sidecar:
     image: tailscale/tailscale:latest
     hostname: ${SERVER_NAME}
     container_name: ${SERVER_NAME}-tailscale-sidecar
@@ -480,7 +480,7 @@ EOF
 
 # Add network mode for Tailscale
 if [ "$ENABLE_TAILSCALE" == "yes" ]; then
-    echo "    network_mode: \"service:tailscale-sidecar\"" >> "$COMPOSE_FILE"
+    echo "    network_mode: \"service:${SERVER_NAME}-tailscale-sidecar\"" >> "$COMPOSE_FILE"
 fi
 
 # Add ports only if NOT using Tailscale (since sidecar handles networking)
@@ -542,7 +542,7 @@ EOF
 
 fi
 if [ "$ENABLE_TAILSCALE" == "yes" ]; then
-    echo "    network_mode: \"service:tailscale-sidecar\"" >> "$COMPOSE_FILE"
+    echo "    network_mode: \"service:${SERVER_NAME}-tailscale-sidecar\"" >> "$COMPOSE_FILE"
 fi
 if [ "$USE_GEYSER" == "yes" ]; then
     cat >> "$COMPOSE_FILE" <<EOF
@@ -758,10 +758,10 @@ if [ "$ENABLE_BACKUPS" == "yes" ]; then
                  log "ERROR" "Failed to install rclone"
                  exit 1
             fi
-            echo "✅ rclone installed successfully."
+            echo "rclone installed successfully."
             log "INFO" "rclone installed successfully."
         else
-            echo "⚠ Skipping backup configuration. Install rclone and re-run to set up backups."
+            echo "Skipping backup configuration. Install rclone and re-run to set up backups."
             log "INFO" "Backup configuration skipped"
             ENABLE_BACKUPS="no"
         fi
