@@ -524,10 +524,6 @@ cat >> "$COMPOSE_FILE" <<EOF
       - ${SERVER_DIR}:/data
 EOF
 
-# Add Geyser container if enabled
-
-#CREATE config.yml in ${SERVER_DIR}/config/geyser
-
 # TO REVIEW
 
 if [ "$USE_GEYSER" == "yes" ]; then
@@ -538,6 +534,9 @@ if [ "$USE_GEYSER" == "yes" ]; then
     container_name: geyser
     restart: unless-stopped
 EOF
+
+#CREATE config.yml in ${SERVER_DIR}/config/geyser
+
 fi
 if [ "$ENABLE_TAILSCALE" == "yes" ]; then
     echo "    network_mode: \"service:tailscale-sidecar\"" >> "$COMPOSE_FILE"
