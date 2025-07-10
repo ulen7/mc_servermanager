@@ -527,15 +527,16 @@ EOF
 # TO REVIEW
 
 if [ "$USE_GEYSER" == "yes" ]; then
-    GEYSER_DIR=${SERVER_SER}/config/geyser
+
+    GEYSER_DIR="${SERVER_DIR}/config/geyser"
+    GEYSER_CONFIG="${GEYSER_DIR}/config.yml"
+
     cat >> "$COMPOSE_FILE" <<EOF
   geyser:
     image: bmoorman/geyser:latest
-    container_name: geyser
+    container_name: ${SERVER_NAME}-geyser
     restart: unless-stopped
 EOF
-
-#CREATE config.yml in ${SERVER_DIR}/config/geyser
 
 fi
 if [ "$ENABLE_TAILSCALE" == "yes" ]; then
@@ -545,6 +546,60 @@ if [ "$USE_GEYSER" == "yes" ]; then
     cat >> "$COMPOSE_FILE" <<EOF
   volumes:
     - ${GEYSER_DIR}:/var/lib/geyser
+EOF
+fi
+
+if [ "$USE_GEYSER" == "yes" ]; then
+    cat > "$GEYSER_CONFIG" <<EOF
+bedrock:
+  port: ${MC_BPORT}
+  clone-remote-port: false
+  motd1: "Geyser"
+  motd2: "Another Geyser server."
+  server-name: "Geyser"
+  compression-level: 6
+  enable-proxy-protocol: false
+remote:
+  address: auto
+  port: ${MC_JPORT}
+  auth-type: floodgate
+  use-proxy-protocol: false
+  forward-hostname: false
+floodgate-key-file: key.pem
+saved-user-logins:
+  - ThisExampleUsernameShouldBeLongEnoughToNeverBeAnXboxUsername
+  - ThisOtherExampleUsernameShouldAlsoBeLongEnough
+pending-authentication-timeout: 120
+command-suggestions: true
+passthrough-motd: true
+passthrough-player-counts: true
+legacy-ping-passthrough: false
+ping-passthrough-interval: 3
+forward-player-ping: false
+max-players: 100
+debug-mode: false
+show-cooldown: title
+show-coordinates: true
+disable-bedrock-scaffolding: false
+emote-offhand-workaround: "disabled"
+cache-images: 0
+allow-custom-skulls: true
+max-visible-custom-skulls: 128
+custom-skull-render-distance: 32
+add-non-bedrock-items: true
+above-bedrock-nether-building: false
+force-resource-packs: true
+xbox-achievements-enabled: false
+log-player-ip-addresses: true
+notify-on-new-bedrock-update: true
+unusable-space-block: minecraft:barrier
+scoreboard-packet-threshold: 20
+
+enable-proxy-connections: false
+mtu: 1400
+use-direct-connection: true
+disable-compression: true
+config-version: 4
 EOF
 fi
 
@@ -652,36 +707,29 @@ if [ "$USE_GEYSER" == "yes" ]; then
     sleep 10
     
     PLUGINS_DIR="$SERVER_DIR/config"
-    GEYSER_CONFIG_PATH=$(find "$PLUGINS_DIR" -type f -name "config.yml" -path "*/Geyser-*/config.yml" 2>/dev/null | head -n 1)
+    FLOODGATE_CONFIG_PATH=$(find "$PLUGINS_DIR" -type f -name "key.pem" -path "*/floodgate*/key.pem" 2>/dev/null | head -n 1)
 
-    if [ -f "$GEYSER_CONFIG_PATH" ]; then
-        echo "Found Geyser config at: $GEYSER_CONFIG_PATH"
-        log "INFO" "Found Geyser config at: $GEYSER_CONFIG_PATH"
+    if [ -f "$FLOODGATE_CONFIG_PATH" ]; then
+        echo "Found Floodgate config at: $FLOODGATE_CONFIG_PATH"
+        log "INFO" "Found Floodgate config at: $FLOODGATE_CONFIG_PATH"
         
-        CONFIRM_SED=$(prompt_yes_no "Apply Bedrock port configuration to Geyser? (y/n) [y]: " "y")
+        CONFIRM_SED=$(prompt_yes_no "Use Floodgate to authenticate Bedrock users? (y/n) [y]: " "y")
         if [ "$CONFIRM_SED" == "yes" ]; then
             # Create backup of original config
-            cp "$GEYSER_CONFIG_PATH" "$GEYSER_CONFIG_PATH.backup"
-            
-            sed -i -E "/^[[:space:]]*bedrock:[[:space:]]*$/,/^[[:alpha:]]/ {
-                /^[[:space:]]*port:[[:space:]]*[0-9]+[[:space:]]*$/ s/[0-9]+/${MC_BPORT}/
-            }" "$GEYSER_CONFIG_PATH"
-            
-            log "INFO" "Updated Bedrock port to ${MC_BPORT}."
-            echo "Updated Bedrock port to ${MC_BPORT}."
+            cp "$FLOODGATE_CONDIG_PATH" "$GEYSER_DIR"
 
-            show_progress "Restarting container to apply new settings"
-            (cd "$SERVER_DIR" && docker compose restart minecraft)
+            show_progress "Restarting geyser to apply new settings"
+            (cd "$SERVER_DIR" && docker restart "$SERVER_NAME"-geyser)
             echo "Geyser configuration complete!"
         else
             echo "Configuration skipped. Update port manually to ${MC_BPORT} if needed."
             log "WARN" "Geyser configuration skipped by user."
         fi
     else
-        echo "   Could not find Geyser config.yml."
-        echo "   The server may need more time, or Geyser may not be installed correctly."
-        echo "   You may need to set the Bedrock port to ${MC_BPORT} manually."
-        log "WARN" "Could not find Geyser config, port to be set manually later"
+        echo "   Could not find Floodgate key.pem"
+        echo "   The server may need more time, or Floodgate may not be installed correctly."
+        echo "   You may need to copy the key.pem file to ${GEYSER_DIR} manually."
+        log "WARN" "Could not find floodgate key.oem file, to be copied manually later"
     fi
 fi
 
