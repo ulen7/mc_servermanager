@@ -718,7 +718,7 @@ if [ "$USE_GEYSER" == "yes" ]; then
         CONFIRM_SED=$(prompt_yes_no "Use Floodgate to authenticate Bedrock users? (y/n) [y]: " "y")
         if [ "$CONFIRM_SED" == "yes" ]; then
             # Create backup of original config
-            cp "$FLOODGATE_CONDIG_PATH" "$GEYSER_DIR"
+            cp "$FLOODGATE_CONFIG_PATH" "$GEYSER_DIR"
 
             show_progress "Restarting geyser to apply new settings"
             (cd "$SERVER_DIR" && docker restart "$SERVER_NAME"-geyser)
