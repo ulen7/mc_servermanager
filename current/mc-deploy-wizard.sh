@@ -515,7 +515,7 @@ fi
 
 # Add mod environment block if present
 if [ -n "$MOD_ENV_BLOCK" ]; then
-    echo "$MOD_ENV_BLOCK" >> "$COMPOSE_FILE"
+    echo "      $MOD_ENV_BLOCK" >> "$COMPOSE_FILE"
 fi
 
 # Add volumes
@@ -531,6 +531,8 @@ if [ "$USE_GEYSER" == "yes" ]; then
     GEYSER_DIR="${SERVER_DIR}/config/geyser"
     GEYSER_CONFIG="${GEYSER_DIR}/config.yml"
 
+    mkdir -p "$GEYSER_DIR"
+
     cat >> "$COMPOSE_FILE" <<EOF
   geyser:
     image: bmoorman/geyser:latest
@@ -544,8 +546,8 @@ if [ "$ENABLE_TAILSCALE" == "yes" ]; then
 fi
 if [ "$USE_GEYSER" == "yes" ]; then
     cat >> "$COMPOSE_FILE" <<EOF
-  volumes:
-    - ${GEYSER_DIR}:/var/lib/geyser
+    volumes:
+      - ${GEYSER_DIR}:/var/lib/geyser
 EOF
 fi
 
