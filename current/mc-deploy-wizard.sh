@@ -801,14 +801,15 @@ if [ "$ENABLE_BACKUPS" == "yes" ]; then
     LOCAL_BACKUP_PATH="$HOME/minecraft_backups/$SERVER_NAME"
     
     mkdir -p "$SCRIPTS_DIR"
-
+    mkdir -p "$LOCAL_BACKUP_PATH"
+    
     cat > "$BACKUP_SCRIPT_PATH" << EOF
 #!/bin/bash
 # Auto-generated backup script for ${SERVER_NAME}
 
 # --- Configuration ---
 WORLD_NAME="${SERVER_NAME}"
-WORLD_DATA_DIR="${SERVER_DIR}/\world"
+WORLD_DATA_DIR="${SERVER_DIR}/world"
 BACKUP_DIR="${LOCAL_BACKUP_PATH}"
 TIMESTAMP=\$(date +'%Y-%m-%d_%H-%M')
 BACKUP_NAME="\${WORLD_NAME}_\${TIMESTAMP}.tar.gz"
@@ -830,11 +831,11 @@ mkdir -p "\$BACKUP_DIR"
 
 # --- Stop server temporarily for consistent backup ---
 log_backup "Stopping server for backup..."
-docker compose -f "${SERVER_DIR}/docker-compose.yml" stop minecraft
+docker compose -f "\${SERVER_DIR}/docker-compose.yml" stop minecraft
 
 # --- Create Compressed Backup ---
 log_backup "Creating compressed backup..."
-if tar -czf "\$BACKUP_DIR/\$BACKUP_NAME" -C "\$WORLD_DATA_DIR" .; then
+if tar -czf "\${BACKUP_DIR}/\${BACKUP_NAME}" -C "\$WORLD_DATA_DIR" .; then
     log_backup "Successfully created local backup: \$BACKUP_NAME"
 else
     log_backup "ERROR: Failed to create tarball."
@@ -856,7 +857,10 @@ fi
 
 # --- Rotate Local Backups ---
 log_backup "Rotating local backups (keeping \${MAX_LOCAL_BACKUPS})..."
-ls -1t "\$BACKUP_DIR"/*.tar.gz 2>/dev/null | tail -n +\$((MAX_LOCAL_BACKUPS + 1)) | xargs -r rm
+find "\$BACKUP_DIR" -maxdepth 1 -name "*.tar.gz" -printf "%T@ %p\n" | \
+  sort -n | \
+  awk 'NR > '"\$MAX_LOCAL_BACKUPS"' {print \$2}' | \
+  xargs -r rm --
 
 echo "--- Backup Complete ---" >> "\${LOG_FILE}"
 
@@ -875,12 +879,12 @@ EOF
 
 ---
 backups:
-   To automate your backups, add the following line to your system's crontab (with this command a backup will be made everyday at 3 AM).
+   To automate your backups, add the following line to your system's crontab.
    Run 'crontab -e' and paste this line at the bottom:
 
    ${CRON_JOB}
 
-   This will run the backup every Sunday at 3:00 AM Toronto time.
+   This will run the backup every day at 3:00 UTC.
 EOF
 )
 
