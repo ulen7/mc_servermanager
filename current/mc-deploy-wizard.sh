@@ -514,7 +514,7 @@ if [ -n "$MC_SEED" ]; then
 fi
 
 # Add mod environment block if present
-if [ -n "$_BLOCK" ]; then
+if [ -n "$MOD_ENV_BLOCK" ]; then
     echo "$MOD_ENV_BLOCK" >> "$COMPOSE_FILE"
 fi
 
