@@ -29,6 +29,18 @@ An interactive Bash script that helps you configure and deploy a fully customize
   - `rclone` (for cloud backups)
   - `sudo` access (for rclone installation)
   - Tailscale account & auth key
+To run the script download the script to your ubuntu machine with:
+```
+curl -o mc-deploy-wizard.sh https://raw.githubusercontent.com/ulen7/mc_servermanager/main/current/mc-deploy-wizard.sh
+```
+or
+```
+curl -o mc-deploy-wizard.sh https://shorturl.at/U0OHn
+```
+Then do
+```
+bash ./mc-deploy-wizard.sh
+```
 
 ---
 
@@ -72,7 +84,7 @@ An interactive Bash script that helps you configure and deploy a fully customize
     ```
     crontab -e
     # Add this line (to create backup every sunday at 3am Toronto time)
-    0 3 * * 0 TZ=America/Toronto /home/user/minecraft_servers/myserver/scripts/backup.sh >> /home/user/minecraft_servers/myserver/scripts/cron.log 2>&1
+    0 3 * * * /home/user/scripts/backup_mc_servername.sh >> /home/user/scripts/cron.log 2>&1
     ```
 
 ---
