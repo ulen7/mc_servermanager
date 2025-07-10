@@ -831,7 +831,7 @@ mkdir -p "\$BACKUP_DIR"
 
 # --- Stop server temporarily for consistent backup ---
 log_backup "Stopping server for backup..."
-docker compose -f "\${SERVER_DIR}/docker-compose.yml" stop minecraft
+docker compose -f "${SERVER_DIR}/docker-compose.yml" stop minecraft
 
 # --- Create Compressed Backup ---
 log_backup "Creating compressed backup..."
