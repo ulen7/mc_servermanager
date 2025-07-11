@@ -800,10 +800,11 @@ if [ "$ENABLE_BACKUPS" == "yes" ]; then
     BACKUP_SCRIPT_PATH="$SCRIPTS_DIR/backup.sh"
     LOCAL_BACKUP_PATH="$HOME/minecraft_backups/$SERVER_NAME"
     LOG_FILE="${SCRIPTS_DIR}/backup.log"
-    touch "$LOG_FILE"
     
     mkdir -p "$SCRIPTS_DIR"
     mkdir -p "$LOCAL_BACKUP_PATH"
+
+    touch "$LOG_FILE"
     
     cat > "$BACKUP_SCRIPT_PATH" << EOF
 #!/bin/bash
