@@ -862,6 +862,15 @@ find "\$BACKUP_DIR" -maxdepth 1 -name "*.tar.gz" -printf "%T@ %p\n" | \
   awk 'NR > '"\$MAX_LOCAL_BACKUPS"' {print \$2}' | \
   xargs -r rm --
 
+# --- Rotate Remote Backups ---
+log_backup "Rotating remote backups (keeping \${MAX_REMOTE_BACKUPS})..."
+rclone lsf "\${REMOTE_NAME}:\${REMOTE_PATH}" --format "t,p" | \
+  sort -n | \
+  awk 'NR > '"\$MAX_REMOTE_BACKUPS"' {print \$2}' | \
+  while read -r file; do
+    rclone delete "\${REMOTE_NAME}:\${REMOTE_PATH}/\$file"
+  done
+
 echo "--- Backup Complete ---" >> "\${LOG_FILE}"
 
 EOF
