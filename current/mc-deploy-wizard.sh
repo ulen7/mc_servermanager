@@ -797,8 +797,10 @@ if [ "$ENABLE_BACKUPS" == "yes" ]; then
     show_progress "Generating backup script"
     
     SCRIPTS_DIR="$HOME/scripts"
-    BACKUP_SCRIPT_PATH="$SCRIPTS_DIR/backup_$SERVER_NAME.sh"
+    BACKUP_SCRIPT_PATH="$SCRIPTS_DIR/$SERVER_NAME/backup.sh"
     LOCAL_BACKUP_PATH="$HOME/minecraft_backups/$SERVER_NAME"
+    LOG_FILE="${SCRIPTS_DIR}/backup_$SERVER_NAME.log"
+    touch LOG_FILE
     
     mkdir -p "$SCRIPTS_DIR"
     mkdir -p "$LOCAL_BACKUP_PATH"
