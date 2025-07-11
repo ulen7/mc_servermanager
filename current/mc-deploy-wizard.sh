@@ -796,11 +796,11 @@ if [ "$ENABLE_BACKUPS" == "yes" ]; then
     log "INFO" "Generating backup script"
     show_progress "Generating backup script"
     
-    SCRIPTS_DIR="$HOME/scripts"
-    BACKUP_SCRIPT_PATH="$SCRIPTS_DIR/$SERVER_NAME/backup.sh"
+    SCRIPTS_DIR="$HOME/scripts/$SERVER_NAME"
+    BACKUP_SCRIPT_PATH="$SCRIPTS_DIR/backup.sh"
     LOCAL_BACKUP_PATH="$HOME/minecraft_backups/$SERVER_NAME"
-    LOG_FILE="${SCRIPTS_DIR}/backup_$SERVER_NAME.log"
-    touch LOG_FILE
+    LOG_FILE="${SCRIPTS_DIR}/backup.log"
+    touch "$LOG_FILE"
     
     mkdir -p "$SCRIPTS_DIR"
     mkdir -p "$LOCAL_BACKUP_PATH"
@@ -817,7 +817,6 @@ TIMESTAMP=\$(date +'%Y-%m-%d_%H-%M')
 BACKUP_NAME="\${WORLD_NAME}_\${TIMESTAMP}.tar.gz"
 REMOTE_NAME="${RCLONE_REMOTE}"
 REMOTE_PATH="minecraft_backups/\${WORLD_NAME}"
-LOG_FILE="${SCRIPTS_DIR}/backup_$SERVER_NAME.log"
 MAX_LOCAL_BACKUPS=4
 MAX_REMOTE_BACKUPS=4
 
