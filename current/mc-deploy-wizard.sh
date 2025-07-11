@@ -865,16 +865,16 @@ find "\$BACKUP_DIR" -maxdepth 1 -name "*.tar.gz" -printf "%T@ %p\n" | \
   xargs -r rm --
 
 # --- Rotate Remote Backups ---
-log_backup "Rotating remote backups (keeping ${MAX_REMOTE_BACKUPS})..."
+log_backup "Rotating remote backups (keeping \${MAX_REMOTE_BACKUPS})..."
 
-REMOTE_FILES=$(rclone lsf "${REMOTE_NAME}:${REMOTE_PATH}" --format "p,t" --separator "|" | sort -t'|' -k2 -r)
+REMOTE_FILES=$(rclone lsf "\${REMOTE_NAME}:\${REMOTE_PATH}" --format "p,t" --separator "|" | sort -t'|' -k2 -r)
 
 COUNT=0
-echo "$REMOTE_FILES" | while IFS='|' read -r filename timestamp; do
+echo "\$REMOTE_FILES" | while IFS='|' read -r filename timestamp; do
     COUNT=$((COUNT + 1))
-    if [ "$COUNT" -gt "$MAX_REMOTE_BACKUPS" ]; then
+    if [ "$COUNT" -gt "\$MAX_REMOTE_BACKUPS" ]; then
         log_backup "Deleting old remote backup: $filename"
-        rclone delete "${REMOTE_NAME}:${REMOTE_PATH}/$filename"
+        rclone delete "\${REMOTE_NAME}:\${REMOTE_PATH}/$filename"
     fi
 done
 
