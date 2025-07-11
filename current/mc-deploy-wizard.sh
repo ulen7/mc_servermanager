@@ -823,7 +823,7 @@ MAX_REMOTE_BACKUPS=4
 
 # --- Logging ---
 log_backup() {
-    echo "[\$(date +'%Y-%m-%d %H:%M:%S')] \$1" >> "\${LOG_FILE}"
+    echo "[\$(date +'%Y-%m-%d %H:%M:%S')] \$1" >> "${LOG_FILE}"
 }
 
 log_backup "=== Starting Backup for \${WORLD_NAME} ==="
@@ -865,15 +865,20 @@ find "\$BACKUP_DIR" -maxdepth 1 -name "*.tar.gz" -printf "%T@ %p\n" | \
   xargs -r rm --
 
 # --- Rotate Remote Backups ---
-log_backup "Rotating remote backups (keeping \${MAX_REMOTE_BACKUPS})..."
-rclone lsf "\${REMOTE_NAME}:\${REMOTE_PATH}" --format "t,p" | \
-  sort -n | \
-  awk 'NR > '"\$MAX_REMOTE_BACKUPS"' {print \$2}' | \
-  while read -r file; do
-    rclone delete "\${REMOTE_NAME}:\${REMOTE_PATH}/\$file"
-  done
+log_backup "Rotating remote backups (keeping ${MAX_REMOTE_BACKUPS})..."
 
-echo "--- Backup Complete ---" >> "\${LOG_FILE}"
+REMOTE_FILES=$(rclone lsf "${REMOTE_NAME}:${REMOTE_PATH}" --format "p,t" --separator "|" | sort -t'|' -k2 -r)
+
+COUNT=0
+echo "$REMOTE_FILES" | while IFS='|' read -r filename timestamp; do
+    COUNT=$((COUNT + 1))
+    if [ "$COUNT" -gt "$MAX_REMOTE_BACKUPS" ]; then
+        log_backup "Deleting old remote backup: $filename"
+        rclone delete "${REMOTE_NAME}:${REMOTE_PATH}/$filename"
+    fi
+done
+
+echo "--- Backup Complete ---" >> "${LOG_FILE}"
 
 EOF
 
