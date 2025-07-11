@@ -867,16 +867,32 @@ find "\$BACKUP_DIR" -maxdepth 1 -name "*.tar.gz" -printf "%T@ %p\n" | \
 # --- Rotate Remote Backups ---
 log_backup "Rotating remote backups (keeping \${MAX_REMOTE_BACKUPS})..."
 
-REMOTE_FILES=$(rclone lsf "\${REMOTE_NAME}:\${REMOTE_PATH}" --format "p,t" --separator "|" | sort -t'|' -k2 -r)
+# Get remote files sorted by timestamp (newest first)
+REMOTE_FILES=\$(rclone lsf "\${REMOTE_NAME}:\${REMOTE_PATH}" --format "p,t" --separator "|" | sort -t'|' -k2 -r)
 
-COUNT=0
-echo "\$REMOTE_FILES" | while IFS='|' read -r filename timestamp; do
-    COUNT=$((COUNT + 1))
-    if [ "$COUNT" -gt "\$MAX_REMOTE_BACKUPS" ]; then
-        log_backup "Deleting old remote backup: $filename"
-        rclone delete "\${REMOTE_NAME}:\${REMOTE_PATH}/$filename"
+if [ -n "\$REMOTE_FILES" ]; then
+    # Count total files
+    TOTAL_FILES=\$(echo "\$REMOTE_FILES" | wc -l)
+    
+    if [ "\$TOTAL_FILES" -gt "\$MAX_REMOTE_BACKUPS" ]; then
+        # Get files to delete (skip the first MAX_REMOTE_BACKUPS files)
+        FILES_TO_DELETE=\$(echo "\$REMOTE_FILES" | tail -n +\$((\$MAX_REMOTE_BACKUPS + 1)) | cut -d'|' -f1)
+        
+        # Delete old files
+        echo "\$FILES_TO_DELETE" | while IFS= read -r filename; do
+            if [ -n "\$filename" ]; then
+                log_backup "Deleting old remote backup: \$filename"
+                rclone delete "\${REMOTE_NAME}:\${REMOTE_PATH}/\$filename"
+            fi
+        done
+        
+        log_backup "Deleted \$((\$TOTAL_FILES - \$MAX_REMOTE_BACKUPS)) old remote backups"
+    else
+        log_backup "No remote backups to delete (have \$TOTAL_FILES, keeping \$MAX_REMOTE_BACKUPS)"
     fi
-done
+else
+    log_backup "No remote backups found"
+fi
 
 echo "--- Backup Complete ---" >> "${LOG_FILE}"
 
