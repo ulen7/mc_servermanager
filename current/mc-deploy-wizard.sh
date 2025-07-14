@@ -23,6 +23,12 @@ DEFAULT_SEED=""
 DEFAULT_USE_GEYSER="no"
 DEFAULT_ENABLE_BACKUPS="no"
 DEFAULT_ENABLE_TAILSCALE="no"
+# DEFAULT_BACKUPS_N_DAILY="2"
+# DEFAULT_BACKUPS_N_WEEKLY="2"
+# DEFAULT_BACKUPS_N_MONTHLY="2"
+# DEFAULT_MODS=""
+DEFAULT_ENABLE_TAILSCALE="no"
+
 
 # Reserved ports that should be avoided
 RESERVED_PORTS=(22 80 443 3389 5432 3306 21 25 53 110 143 993 995)
@@ -311,6 +317,9 @@ done
 
 # === Optional Features - Back-Ups===
 ENABLE_BACKUPS=$(prompt_yes_no "Enable automatic backups? (y/n) [${DEFAULT_ENABLE_BACKUPS}]: " "$DEFAULT_ENABLE_BACKUPS")
+
+# TO ADD: Confirmation of N of backups
+# TO ADD: WHEN (daily, weekly, monthly)
 
 # === Tailscale Prompt & Secure Key Input ===
 ENABLE_TAILSCALE=$(prompt_yes_no "Enable remote access with Tailscale? (y/n) [${DEFAULT_ENABLE_TAILSCALE}]: " "$DEFAULT_ENABLE_TAILSCALE")
@@ -792,6 +801,9 @@ if [ "$ENABLE_BACKUPS" == "yes" ]; then
 fi
 
 # Generate Backup Script
+
+# TO ADD: modifications for amount of backups and if daily, weekly, monthly.
+
 if [ "$ENABLE_BACKUPS" == "yes" ]; then
     log "INFO" "Generating backup script"
     show_progress "Generating backup script"
