@@ -23,10 +23,6 @@ DEFAULT_SEED=""
 DEFAULT_USE_GEYSER="no"
 DEFAULT_ENABLE_BACKUPS="no"
 DEFAULT_ENABLE_TAILSCALE="no"
-# DEFAULT_BACKUPS_N_DAILY="2"
-# DEFAULT_BACKUPS_N_WEEKLY="2"
-# DEFAULT_BACKUPS_N_MONTHLY="2"
-# DEFAULT_MODS=""
 DEFAULT_ENABLE_TAILSCALE="no"
 
 
@@ -318,9 +314,6 @@ done
 # === Optional Features - Back-Ups===
 ENABLE_BACKUPS=$(prompt_yes_no "Enable automatic backups? (y/n) [${DEFAULT_ENABLE_BACKUPS}]: " "$DEFAULT_ENABLE_BACKUPS")
 
-# TO ADD: Confirmation of N of backups
-# TO ADD: WHEN (daily, weekly, monthly)
-
 # === Tailscale Prompt & Secure Key Input ===
 ENABLE_TAILSCALE=$(prompt_yes_no "Enable remote access with Tailscale? (y/n) [${DEFAULT_ENABLE_TAILSCALE}]: " "$DEFAULT_ENABLE_TAILSCALE")
 if [ "$ENABLE_TAILSCALE" == "yes" ]; then
@@ -428,6 +421,7 @@ MOD_ENV_BLOCK=""
 COMPOSE_FILE="${SERVER_DIR}/docker-compose.yml"
 
 # Check if the server type is Fabric to add mods
+
 if [ "$SERVER_TYPE" == "fabric" ]; then
     MODS_LIST="fabric-api, viaversion,viafabric"
     if [ "$USE_GEYSER" == "yes" ]; then
@@ -801,8 +795,6 @@ if [ "$ENABLE_BACKUPS" == "yes" ]; then
 fi
 
 # Generate Backup Script
-
-# TO ADD: modifications for amount of backups and if daily, weekly, monthly.
 
 if [ "$ENABLE_BACKUPS" == "yes" ]; then
     log "INFO" "Generating backup script"
