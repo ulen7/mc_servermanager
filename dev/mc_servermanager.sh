@@ -35,6 +35,8 @@ RESERVED_PORTS=(22 80 443 3389 5432 3306 21 25 53 110 143 993 995)
 
 # === 1. Helper Functions ===
 
+# To add function that will create script for backups daily/weekly/monthly
+
 # Cleanup function for script failure
 cleanup() {
     local exit_code=$?
