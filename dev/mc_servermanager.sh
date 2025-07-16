@@ -315,11 +315,29 @@ while true; do
     fi
 done
 
-# === Optional Features - Back-Ups===
+# === Optional Features - Back-Ups ===
 ENABLE_BACKUPS=$(prompt_yes_no "Enable automatic backups? (y/n) [${DEFAULT_ENABLE_BACKUPS}]: " "$DEFAULT_ENABLE_BACKUPS")
 
 # TO ADD: Confirmation of N of backups
 # TO ADD: WHEN (daily, weekly, monthly)
+
+if [ "$ENABLE_BACKUPS" == "yes" ]; then
+    echo ""
+    echo ""    
+    log "INFO" "Backups Enabled, setting configuration..."
+fi
+
+    
+# === Optional Features - MODS ===
+ENABLE_MODS=$(prompt_yes_no "Do you want to have mods in your server?")
+
+if [ "$ENABLE_MODS" == "yes" ]; then
+    echo ""
+    echo ""    
+    log "INFO" "MODS Enabled, setting configuration..."
+fi
+
+
 
 # === Tailscale Prompt & Secure Key Input ===
 ENABLE_TAILSCALE=$(prompt_yes_no "Enable remote access with Tailscale? (y/n) [${DEFAULT_ENABLE_TAILSCALE}]: " "$DEFAULT_ENABLE_TAILSCALE")
@@ -328,8 +346,8 @@ if [ "$ENABLE_TAILSCALE" == "yes" ]; then
     echo ""    
     log "INFO" "Tailscale Enabled, setting configuration..."
     echo "Please generate an OAuth Key from your Tailscale Admin Console."
-    echo "Visit: https://tailscale.com/kb/1282/docker"
-    echo "It is recommended to use an Ephemeral, Pre-authorized, and Tagged key."
+    echo "Visit: https://tailscale.com/kb/1282/docker for more information"
+
     
     # Ensure directory exists
     if [ ! -d "$SERVER_DIR" ]; then
