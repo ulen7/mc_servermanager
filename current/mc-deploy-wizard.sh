@@ -9,7 +9,7 @@ set -euo pipefail
 
 # Minecraft Server Setup
 # Maintained at: https://github.com/ulen7/mc_servermanager/new/main/current
-# Version: 1.0.0
+# Version: 1.0.1 dev
 
 # === 0. Constants & Defaults ===
 DEFAULT_SERVER_NAME="mc_server"
@@ -23,6 +23,10 @@ DEFAULT_SEED=""
 DEFAULT_USE_GEYSER="no"
 DEFAULT_ENABLE_BACKUPS="no"
 DEFAULT_ENABLE_TAILSCALE="no"
+# DEFAULT_BACKUPS_N_DAILY="2"
+# DEFAULT_BACKUPS_N_WEEKLY="2"
+# DEFAULT_BACKUPS_N_MONTHLY="2"
+# DEFAULT_MODS=""
 DEFAULT_ENABLE_TAILSCALE="no"
 
 
@@ -30,6 +34,8 @@ DEFAULT_ENABLE_TAILSCALE="no"
 RESERVED_PORTS=(22 80 443 3389 5432 3306 21 25 53 110 143 993 995)
 
 # === 1. Helper Functions ===
+
+# To add function that will create script for backups daily/weekly/monthly
 
 # Cleanup function for script failure
 cleanup() {
@@ -311,8 +317,29 @@ while true; do
     fi
 done
 
-# === Optional Features - Back-Ups===
+# === Optional Features - Back-Ups ===
 ENABLE_BACKUPS=$(prompt_yes_no "Enable automatic backups? (y/n) [${DEFAULT_ENABLE_BACKUPS}]: " "$DEFAULT_ENABLE_BACKUPS")
+
+# TO ADD: Confirmation of N of backups
+# TO ADD: WHEN (daily, weekly, monthly)
+
+if [ "$ENABLE_BACKUPS" == "yes" ]; then
+    echo ""
+    echo ""    
+    log "INFO" "Backups Enabled, setting configuration..."
+fi
+
+    
+# === Optional Features - MODS ===
+ENABLE_MODS=$(prompt_yes_no "Do you want to have mods in your server?")
+
+if [ "$ENABLE_MODS" == "yes" ]; then
+    echo ""
+    echo ""    
+    log "INFO" "MODS Enabled, setting configuration..."
+fi
+
+
 
 # === Tailscale Prompt & Secure Key Input ===
 ENABLE_TAILSCALE=$(prompt_yes_no "Enable remote access with Tailscale? (y/n) [${DEFAULT_ENABLE_TAILSCALE}]: " "$DEFAULT_ENABLE_TAILSCALE")
@@ -321,8 +348,8 @@ if [ "$ENABLE_TAILSCALE" == "yes" ]; then
     echo ""    
     log "INFO" "Tailscale Enabled, setting configuration..."
     echo "Please generate an OAuth Key from your Tailscale Admin Console."
-    echo "Visit: https://tailscale.com/kb/1282/docker"
-    echo "It is recommended to use an Ephemeral, Pre-authorized, and Tagged key."
+    echo "Visit: https://tailscale.com/kb/1282/docker for more information"
+
     
     # Ensure directory exists
     if [ ! -d "$SERVER_DIR" ]; then
@@ -421,7 +448,6 @@ MOD_ENV_BLOCK=""
 COMPOSE_FILE="${SERVER_DIR}/docker-compose.yml"
 
 # Check if the server type is Fabric to add mods
-
 if [ "$SERVER_TYPE" == "fabric" ]; then
     MODS_LIST="fabric-api, viaversion,viafabric"
     if [ "$USE_GEYSER" == "yes" ]; then
@@ -795,6 +821,8 @@ if [ "$ENABLE_BACKUPS" == "yes" ]; then
 fi
 
 # Generate Backup Script
+
+# TO ADD: modifications for amount of backups and if daily, weekly, monthly.
 
 if [ "$ENABLE_BACKUPS" == "yes" ]; then
     log "INFO" "Generating backup script"
