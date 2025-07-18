@@ -23,7 +23,7 @@ app.set('view engine', 'ejs');
 
 // Set the directory for the view files.
 // This tells Express to look for template files in the 'views' directory.
-app.set('views', '/usr/src/app/view');
+app.set('views', path.join(__dirname, '../views'));
 
 // Serve static files (like CSS, client-side JS) from a 'public' directory if you add one later.
 app.use(express.static(path.join(__dirname, '../public')));
