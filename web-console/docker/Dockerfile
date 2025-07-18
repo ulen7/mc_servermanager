@@ -1,21 +1,25 @@
-# Use official Node.js LTS image
-FROM node:18
+# docker/Dockerfile
 
-# Set working directory inside the container
+# 1. Base Image: Use an official Node.js runtime as a parent image.
+# Using a specific version is recommended for stability.
+FROM node:18-alpine
+
+# 2. Working Directory: Set the working directory in the container.
+# All subsequent commands (COPY, RUN, etc.) will be executed from this path.
 WORKDIR /usr/src/app
 
-# Copy package files and install dependencies first (better layer caching)
+# 3. Install Dependencies: Copy package.json and package-lock.json first.
+# This leverages Docker's build cache. The npm install step will only be re-run
+# if these files change, not on every code change.
 COPY package*.json ./
 RUN npm install
 
-# Copy the rest of the application code
+# 4. Copy Application Code: Copy the rest of your application's source code.
 COPY . .
 
-# Set environment variable to production
-ENV NODE_ENV=production
-
-# Expose the port (default: 3000)
+# 5. Expose Port: Make the port available to the host.
+# This should match the port your app listens on.
 EXPOSE 3000
 
-# Start the app
-CMD ["node", "src/app.js"]
+# 6. Run Command: Define the command to run your app.
+CMD [ "node", "src/app.js" ]

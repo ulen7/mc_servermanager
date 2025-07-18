@@ -11,4 +11,5 @@ services:
       - ADMIN_PASS=${ADMIN_PASS}
     volumes:
       - .:/usr/src/app
+      - /usr/src/app/node_modules
     restart: unless-stopped
