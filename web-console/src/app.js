@@ -26,7 +26,7 @@ app.set('view engine', 'ejs');
 app.set('views', '/usr/src/app/view');
 
 // Serve static files (like CSS, client-side JS) from a 'public' directory if you add one later.
-// app.use(express.static(path.join(__dirname, '../public')));
+app.use(express.static(path.join(__dirname, '../public')));
 
 // --- Routes ---
 
