@@ -1,24 +1,29 @@
 <!DOCTYPE html>
 <html lang="en">
-<link rel="stylesheet" href="css/style.css">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Minecraft Server Console</title>
+    <!-- Link to the stylesheet served from the 'public' folder -->
+    <link rel="stylesheet" href="/css/style.css">
+    <title>Login - Web Console</title>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>🎮 Minecraft Server Manager</h1>
+            <h1>🎮 Web Server Manager</h1>
             <p>Server Administration Console</p>
-            <div class="server-status">● Server Online</div>
         </div>
 
-        <!-- Login Form -->
+        <!-- Login Form Section -->
         <div id="loginSection" class="login-container">
             <div class="login-form">
                 <h2>🔐 Login</h2>
-                <form id="loginForm">
+                <!-- This form now submits a POST request to the /login route on the server -->
+                <form action="/login" method="POST">
+                    <!-- EJS code to display an error message if one is passed from the server -->
+                    <% if (typeof error !== 'undefined' && error) { %>
+                        <p style="color: #e74c3c; margin-bottom: 15px;"><%= error %></p>
+                    <% } %>
                     <div class="form-group">
                         <label for="username">Username:</label>
                         <input type="text" id="username" name="username" required>
@@ -31,255 +36,6 @@
                 </form>
             </div>
         </div>
-
-        <!-- Console Interface -->
-        <div id="consoleSection" class="console-container">
-            <div class="console-controls">
-                <div class="btn-group">
-                    <button class="btn btn-start" onclick="startServer()">▶️ Start</button>
-                    <button class="btn btn-stop" onclick="stopServer()">⏹️ Stop</button>
-                    <button class="btn btn-restart" onclick="restartServer()">🔄 Restart</button>
-                    <button class="btn btn-clear" onclick="clearConsole()">🗑️ Clear</button>
-                </div>
-                <div class="user-info">
-                    <span>👤 Logged in as: <strong id="currentUser">admin</strong></span>
-                    <button class="logout-btn" onclick="logout()">Logout</button>
-                </div>
-            </div>
-
-            <div class="server-info">
-                <div class="info-grid">
-                    <div class="info-item">
-                        <div class="info-label">Server Status</div>
-                        <div class="info-value" id="serverStatus">Running</div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">Players Online</div>
-                        <div class="info-value" id="playersOnline">0/20</div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">Memory Usage</div>
-                        <div class="info-value" id="memoryUsage">2.1GB/4GB</div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">Uptime</div>
-                        <div class="info-value" id="uptime">2h 34m</div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="console-output" id="consoleOutput">
-                <div class="console-line info">[12:34:56] [Server thread/INFO]: Starting minecraft server version 1.21</div>
-                <div class="console-line info">[12:34:57] [Server thread/INFO]: Loading properties</div>
-                <div class="console-line info">[12:34:58] [Server thread/INFO]: Preparing level "world"</div>
-                <div class="console-line success">[12:35:02] [Server thread/INFO]: Done (4.123s)! For help, type "help"</div>
-                <div class="console-line info">[12:35:03] [Server thread/INFO]: Starting remote control</div>
-                <div class="console-line success">[12:35:03] [Server thread/INFO]: Server is ready!</div>
-            </div>
-
-            <div class="command-input">
-                <input type="text" id="commandInput" placeholder="Enter server command..." onkeypress="handleCommandInput(event)">
-                <button onclick="sendCommand()">Send</button>
-            </div>
-        </div>
     </div>
-
-    <script>
-        // Application state
-        let isLoggedIn = false;
-        let consoleLines = [];
-        let serverRunning = true;
-        let startTime = Date.now();
-
-        // Initialize the application
-        document.addEventListener('DOMContentLoaded', function() {
-            showLoginForm();
-            startStatusUpdates();
-        });
-
-        // Authentication
-        function showLoginForm() {
-            document.getElementById('loginSection').style.display = 'block';
-            document.getElementById('consoleSection').style.display = 'none';
-        }
-
-        function showConsole() {
-            document.getElementById('loginSection').style.display = 'none';
-            document.getElementById('consoleSection').style.display = 'block';
-        }
-
-        // Login form handler
-        document.getElementById('loginForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-            const username = document.getElementById('username').value;
-            const password = document.getElementById('password').value;
-            
-            // Simple demo authentication (replace with real auth)
-            if (username === 'admin' && password === 'minecraft') {
-                isLoggedIn = true;
-                document.getElementById('currentUser').textContent = username;
-                showConsole();
-                addConsoleMessage('info', 'Admin logged in successfully');
-                simulateServerActivity();
-            } else {
-                alert('Invalid credentials. Try admin/minecraft');
-            }
-        });
-
-        // Server control functions
-        function startServer() {
-            if (!serverRunning) {
-                serverRunning = true;
-                document.getElementById('serverStatus').textContent = 'Starting...';
-                addConsoleMessage('info', 'Starting server...');
-                
-                setTimeout(() => {
-                    document.getElementById('serverStatus').textContent = 'Running';
-                    addConsoleMessage('success', 'Server started successfully');
-                    startTime = Date.now();
-                }, 2000);
-            } else {
-                addConsoleMessage('warn', 'Server is already running');
-            }
-        }
-
-        function stopServer() {
-            if (serverRunning) {
-                serverRunning = false;
-                document.getElementById('serverStatus').textContent = 'Stopping...';
-                addConsoleMessage('info', 'Stopping server...');
-                
-                setTimeout(() => {
-                    document.getElementById('serverStatus').textContent = 'Stopped';
-                    addConsoleMessage('error', 'Server stopped');
-                    document.getElementById('playersOnline').textContent = '0/20';
-                    document.getElementById('uptime').textContent = '0m';
-                }, 2000);
-            } else {
-                addConsoleMessage('warn', 'Server is already stopped');
-            }
-        }
-
-        function restartServer() {
-            addConsoleMessage('info', 'Restarting server...');
-            stopServer();
-            setTimeout(() => {
-                startServer();
-            }, 3000);
-        }
-
-        // Console management
-        function addConsoleMessage(type, message) {
-            const timestamp = new Date().toLocaleTimeString();
-            const line = document.createElement('div');
-            line.className = `console-line ${type}`;
-            line.textContent = `[${timestamp}] ${message}`;
-            
-            const output = document.getElementById('consoleOutput');
-            output.appendChild(line);
-            output.scrollTop = output.scrollHeight;
-            
-            // Keep only last 100 lines
-            while (output.children.length > 100) {
-                output.removeChild(output.firstChild);
-            }
-        }
-
-        function clearConsole() {
-            document.getElementById('consoleOutput').innerHTML = '';
-            addConsoleMessage('info', 'Console cleared');
-        }
-
-        // Command handling
-        function handleCommandInput(event) {
-            if (event.key === 'Enter') {
-                sendCommand();
-            }
-        }
-
-        function sendCommand() {
-            const input = document.getElementById('commandInput');
-            const command = input.value.trim();
-            
-            if (command) {
-                addConsoleMessage('info', `> ${command}`);
-                
-                // Simulate command responses
-                setTimeout(() => {
-                    switch (command.toLowerCase()) {
-                        case 'list':
-                            addConsoleMessage('info', 'There are 0 of a max of 20 players online:');
-                            break;
-                        case 'help':
-                            addConsoleMessage('info', 'Available commands: list, stop, say, give, gamemode, weather');
-                            break;
-                        case 'stop':
-                            stopServer();
-                            break;
-                        default:
-                            if (command.startsWith('say ')) {
-                                const message = command.substring(4);
-                                addConsoleMessage('info', `[Server] ${message}`);
-                            } else {
-                                addConsoleMessage('error', `Unknown command: ${command}`);
-                            }
-                    }
-                }, 500);
-                
-                input.value = '';
-            }
-        }
-
-        // Status updates
-        function startStatusUpdates() {
-            setInterval(() => {
-                if (serverRunning) {
-                    const uptime = Math.floor((Date.now() - startTime) / 1000);
-                    const hours = Math.floor(uptime / 3600);
-                    const minutes = Math.floor((uptime % 3600) / 60);
-                    
-                    let uptimeText = '';
-                    if (hours > 0) uptimeText += `${hours}h `;
-                    uptimeText += `${minutes}m`;
-                    
-                    document.getElementById('uptime').textContent = uptimeText;
-                    
-                    // Simulate memory usage changes
-                    const memUsage = (2.0 + Math.random() * 0.5).toFixed(1);
-                    document.getElementById('memoryUsage').textContent = `${memUsage}GB/4GB`;
-                }
-            }, 1000);
-        }
-
-        // Simulate server activity
-        function simulateServerActivity() {
-            setInterval(() => {
-                if (serverRunning && Math.random() < 0.1) {
-                    const activities = [
-                        'Saving chunks...',
-                        'Autosave completed',
-                        'Tick rate: 20.0 TPS',
-                        'Garbage collection completed'
-                    ];
-                    const activity = activities[Math.floor(Math.random() * activities.length)];
-                    addConsoleMessage('info', activity);
-                }
-            }, 5000);
-        }
-
-        // Logout
-        function logout() {
-            isLoggedIn = false;
-            showLoginForm();
-            addConsoleMessage('info', 'Admin logged out');
-        }
-
-        // Auto-focus on command input
-        document.addEventListener('click', function(e) {
-            if (isLoggedIn && e.target.closest('.console-container')) {
-                document.getElementById('commandInput').focus();
-            }
-        });
-    </script>
 </body>
 </html>

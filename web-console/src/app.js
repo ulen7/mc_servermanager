@@ -4,55 +4,68 @@
 const express = require('express');
 const dotenv = require('dotenv');
 const path = require('path');
+const session = require('express-session');
+
+// --- 1. IMPORT YOUR NEW ROUTE HANDLER ---
+const authRoutes = require('./routes/auth');
+const { requireAuth } = require('./middlewares/auth');
 
 // Load environment variables from .env file
-// This will look for a .env file in the root of the project
 dotenv.config();
 
 // Initialize the Express application
 const app = express();
-
-// Set the port for the application.
-// It will try to use the PORT from the .env file, otherwise it defaults to 3000.
 const PORT = process.env.PORT || 3000;
 
 // --- Middleware & Configuration ---
 
 // Set EJS as the templating engine
 app.set('view engine', 'ejs');
-
-// Set the directory for the view files.
-// This tells Express to look for template files in the 'views' directory.
 app.set('views', path.join(__dirname, '../views'));
 
-// Serve static files (like CSS, client-side JS) from a 'public' directory if you add one later.
+// --- 2. ADD MIDDLEWARE TO SERVE CSS and PARSE THE FORM ---
+// Serve static files (like style.css) from the "public" directory
 app.use(express.static(path.join(__dirname, '../public')));
+// Middleware to parse URL-encoded bodies (as sent by HTML forms)
+app.use(express.urlencoded({ extended: true }));
+
+// Session configuration
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'a-default-fallback-secret',
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 1000 * 60 * 60 * 24
+  }
+}));
 
 // --- Routes ---
 
-/**
- * @route GET /login
- * @description Serves the login page.
- */
+// --- 3. REGISTER THE AUTH ROUTES WITH THE APP ---
+// This tells Express to use the handlers from auth.js (like POST /login)
+app.use('/', authRoutes);
+
+// This route now primarily serves the EJS template.
+// The POST logic is handled by the router above.
 app.get('/login', (req, res) => {
-  // Renders the login.ejs file from the 'views' directory.
-  res.render('login', {
-    // You can pass variables to your EJS template like this
-    title: 'Login Page'
-  });
+  // Pass an empty error object so the template doesn't crash
+  res.render('login', { title: 'Login - Web Console', error: null });
 });
 
-/**
- * @route GET /
- * @description A default route to redirect to the login page.
- */
+app.get('/console', requireAuth, (req, res) => {
+  res.render('console', { title: 'Web Console' });
+});
+
 app.get('/', (req, res) => {
-  res.redirect('/login');
+  if (req.session && req.session.authenticated) {
+    res.redirect('/console');
+  } else {
+    res.redirect('/login');
+  }
 });
 
 // --- Server Startup ---
-
-// Start the server and listen for incoming requests on the specified port
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
 });
