@@ -1,24 +1,26 @@
+// src/app.js
+
 const express = require('express');
 const dotenv = require('dotenv');
 const path = require('path');
 const session = require('express-session');
 
+// Import your custom routes and middleware
 const authRoutes = require('./routes/auth');
+const controlRoutes = require('./routes/control'); // <-- 1. IMPORT the new control routes
 const { requireAuth } = require('./middlewares/auth');
-const controlRoutes = require('./routes/control'); // ✅ Moved here
 
 dotenv.config();
-
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Templating and static files
+// Middleware & Configuration
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, '../views'));
 app.use(express.static(path.join(__dirname, '../public')));
 app.use(express.urlencoded({ extended: true }));
+app.use(express.json()); // <-- IMPORTANT: Needed to parse JSON bodies from fetch requests
 
-// Session config
 app.use(session({
   secret: process.env.SESSION_SECRET || 'a-default-fallback-secret',
   resave: false,
@@ -29,10 +31,17 @@ app.use(session({
   }
 }));
 
-// Routes
-app.use('/', authRoutes);
-app.use('/api/control', controlRoutes); // ✅ Now app is defined before use
+// --- Routes ---
 
+// Public auth routes (login/logout)
+app.use('/', authRoutes);
+
+// --- 2. REGISTER the new API routes ---
+// Any request to /api/control/* will be handled by controlRoutes.
+// The `requireAuth` middleware is applied here to protect ALL control routes at once.
+app.use('/api/control', requireAuth, controlRoutes);
+
+// Page-serving routes
 app.get('/login', (req, res) => {
   res.render('login', { title: 'Login - Web Console', error: null });
 });
@@ -49,6 +58,7 @@ app.get('/', (req, res) => {
   }
 });
 
+// Server Startup
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
 });

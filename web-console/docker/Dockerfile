@@ -1,25 +1,31 @@
-# docker/Dockerfile
+# Use an official Node.js runtime as a parent image.
+# Using a specific version is good practice for stability.
+FROM node:18-slim
 
-# 1. Base Image: Use an official Node.js runtime as a parent image.
-# Using a specific version is recommended for stability.
-FROM node:18-alpine
-
-# 2. Working Directory: Set the working directory in the container.
-# All subsequent commands (COPY, RUN, etc.) will be executed from this path.
+# Set the working directory in the container to /usr/src/app
 WORKDIR /usr/src/app
 
-# 3. Install Dependencies: Copy package.json and package-lock.json first.
-# This leverages Docker's build cache. The npm install step will only be re-run
-# if these files change, not on every code change.
+# --- INSTALL DOCKER CLI ---
+# We update the package lists and install the Docker client.
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends docker.io && \
+    # Clean up the apt cache to keep the image size down
+    rm -rf /var/lib/apt/lists/*
+
+# --- GRANT PERMISSIONS ---
+# Add the 'node' user (which runs the app) to the 'docker' group.
+# This is the crucial step to fix the "Cannot connect to the Docker daemon" error.
+RUN usermod -aG docker node
+
+# Copy package.json and package-lock.json (or yarn.lock)
+# This step is cached by Docker, so 'npm install' only runs when dependencies change.
 COPY package*.json ./
+
+# Install app dependencies
 RUN npm install
 
-# 4. Copy Application Code: Copy the rest of your application's source code.
+# Bundle app source inside the Docker image
 COPY . .
 
-# 5. Expose Port: Make the port available to the host.
-# This should match the port your app listens on.
-EXPOSE 3000
-
-# 6. Run Command: Define the command to run your app.
+# Define the command to run your app
 CMD [ "node", "src/app.js" ]

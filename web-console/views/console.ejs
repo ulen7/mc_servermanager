@@ -14,15 +14,14 @@
             <p>Server Administration Console</p>
             <div class="server-status">● Server Online</div>
         </div>
-
         <!-- Console Interface -->
         <div id="consoleSection" class="console-container" style="display: block;">
             <div class="console-controls">
                 <div class="btn-group">
-                    <button class="btn btn-start">▶️ Start</button>
-                    <button class="btn btn-stop">⏹️ Stop</button>
-                    <button class="btn btn-restart">🔄 Restart</button>
-                    <button class="btn btn-clear">🗑️ Clear</button>
+                    <button class="btn btn-start" onclick="startServer()">▶️ Start</button>
+                    <button class="btn btn-stop" onclick="stopServer()">⏹️ Stop</button>
+                    <button class="btn btn-restart" onclick="restartServer()">🔄 Restart</button>
+                    <button class="btn btn-clear" onclick="clearConsole()">🗑️ Clear</button>
                 </div>
                 <div class="user-info">
                     <!-- The username could be passed from the server in the future -->
@@ -31,7 +30,6 @@
                     <a href="/logout" class="logout-btn">Logout</a>
                 </div>
             </div>
-
             <div class="server-info">
                 <div class="info-grid">
                     <div class="info-item">
@@ -52,21 +50,137 @@
                     </div>
                 </div>
             </div>
-
             <div class="console-output" id="consoleOutput">
                 <div class="console-line info">[12:34:56] [Server thread/INFO]: Server process started.</div>
                 <div class="console-line success">[12:35:02] [Server thread/INFO]: Done! For help, type "help"</div>
             </div>
-
             <div class="command-input">
-                <input type="text" id="commandInput" placeholder="Enter server command...">
-                <button>Send</button>
+                <input type="text" id="commandInput" placeholder="Enter server command..." onkeypress="handleCommandInput(event)">
+                <button onclick="sendCommand()">Send</button>
             </div>
         </div>
     </div>
-    <!-- Placeholder for future client-side script to handle console interactions -->
+
     <script>
-        // Future JavaScript for real-time log updates via WebSockets will go here.
+        // Helper function to add console messages
+        function addConsoleMessage(type, message) {
+            const consoleOutput = document.getElementById('consoleOutput');
+            const timestamp = new Date().toLocaleTimeString();
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `console-line ${type}`;
+            messageDiv.textContent = `[${timestamp}] ${message}`;
+            consoleOutput.appendChild(messageDiv);
+            
+            // Auto-scroll to bottom
+            consoleOutput.scrollTop = consoleOutput.scrollHeight;
+        }
+
+        // Server control functions
+        function startServer() {
+            addConsoleMessage('info', 'Starting server...');
+            fetch('/api/control/start', { method: 'POST' })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        addConsoleMessage('success', 'Server started successfully');
+                        document.getElementById('serverStatus').textContent = 'Running';
+                    } else {
+                        throw new Error(data.error || 'Unknown error');
+                    }
+                })
+                .catch(err => {
+                    addConsoleMessage('error', `Failed to start server: ${err.message}`);
+                });
+        }
+
+        function stopServer() {
+            addConsoleMessage('info', 'Stopping server...');
+            fetch('/api/control/stop', { method: 'POST' })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        addConsoleMessage('error', 'Server stopped');
+                        document.getElementById('serverStatus').textContent = 'Stopped';
+                    } else {
+                        throw new Error(data.error || 'Unknown error');
+                    }
+                })
+                .catch(err => {
+                    addConsoleMessage('error', `Failed to stop server: ${err.message}`);
+                });
+        }
+
+        function restartServer() {
+            addConsoleMessage('info', 'Restarting server...');
+            fetch('/api/control/restart', { method: 'POST' })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        addConsoleMessage('success', 'Server restarted successfully');
+                        document.getElementById('serverStatus').textContent = 'Running';
+                    } else {
+                        throw new Error(data.error || 'Unknown error');
+                    }
+                })
+                .catch(err => {
+                    addConsoleMessage('error', `Failed to restart server: ${err.message}`);
+                });
+        }
+
+        // Clear console function
+        function clearConsole() {
+            const consoleOutput = document.getElementById('consoleOutput');
+            consoleOutput.innerHTML = '';
+            addConsoleMessage('info', 'Console cleared');
+        }
+
+        // Command input functions
+        function sendCommand() {
+            const commandInput = document.getElementById('commandInput');
+            const command = commandInput.value.trim();
+            
+            if (command) {
+                addConsoleMessage('info', `> ${command}`);
+                
+                // Send command to server
+                fetch('/api/command', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ command: command })
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        if (data.output) {
+                            addConsoleMessage('info', data.output);
+                        }
+                    } else {
+                        addConsoleMessage('error', data.error || 'Command failed');
+                    }
+                })
+                .catch(err => {
+                    addConsoleMessage('error', `Failed to execute command: ${err.message}`);
+                });
+                
+                // Clear input
+                commandInput.value = '';
+            }
+        }
+
+        // Handle Enter key in command input
+        function handleCommandInput(event) {
+            if (event.key === 'Enter') {
+                sendCommand();
+            }
+        }
+
+        // Optional: Add some initial status checking when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            // You could add a function here to check initial server status
+            addConsoleMessage('info', 'Console interface loaded');
+        });
     </script>
 </body>
 </html>

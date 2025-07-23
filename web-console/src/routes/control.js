@@ -1,41 +1,49 @@
+// src/routes/control.js
+
 const express = require('express');
 const router = express.Router();
 const { startContainer, stopContainer, restartContainer } = require('../utils/docker');
-const { requireAuth } = require('../middlewares/auth');
 
-const containerName = process.env.MC_CONTAINER;
-
-// Protect all routes
-router.use(requireAuth);
-
-// POST /api/control/start
-router.post('/start', async (req, res) => {
+/**
+ * A helper function to create a standard route handler for control actions.
+ * @param {function} action - The container action to perform (e.g., startContainer).
+ * @param {object} res - The Express response object.
+ */
+const handleContainerAction = async (action, res) => {
   try {
-    const output = await startContainer(containerName);
-    res.status(200).json({ success: true, message: output });
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+    // Await the result from the docker utility function.
+    const result = await action();
+    // If successful, send a JSON response indicating success.
+    res.json({ success: true, message: `Container action successful: ${result}` });
+  } catch (error) {
+    // If an error occurs, log it on the server for debugging.
+    console.error(`Container action failed:`, error);
+    // Send a 500 Internal Server Error status with a JSON object containing the error message.
+    res.status(500).json({ success: false, error: error.message });
   }
+};
+
+// --- Define API Routes ---
+
+// @route   POST /api/control/start
+// @desc    Starts the configured Docker container
+// @access  Private (protected by requireAuth middleware in app.js)
+router.post('/start', (req, res) => {
+  handleContainerAction(startContainer, res);
 });
 
-// POST /api/control/stop
-router.post('/stop', async (req, res) => {
-  try {
-    const output = await stopContainer(containerName);
-    res.status(200).json({ success: true, message: output });
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
-  }
+// @route   POST /api/control/stop
+// @desc    Stops the configured Docker container
+// @access  Private
+router.post('/stop', (req, res) => {
+  handleContainerAction(stopContainer, res);
 });
 
-// POST /api/control/restart
-router.post('/restart', async (req, res) => {
-  try {
-    const output = await restartContainer(containerName);
-    res.status(200).json({ success: true, message: output });
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
-  }
+// @route   POST /api/control/restart
+// @desc    Restarts the configured Docker container
+// @access  Private
+router.post('/restart', (req, res) => {
+  handleContainerAction(restartContainer, res);
 });
 
 module.exports = router;
