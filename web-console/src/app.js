@@ -1,35 +1,24 @@
-// src/app.js
-
-// Import necessary modules
 const express = require('express');
 const dotenv = require('dotenv');
 const path = require('path');
 const session = require('express-session');
 
-// --- 1. IMPORT YOUR NEW ROUTE HANDLER ---
 const authRoutes = require('./routes/auth');
 const { requireAuth } = require('./middlewares/auth');
+const controlRoutes = require('./routes/control'); // ✅ Moved here
 
-// Load environment variables from .env file
 dotenv.config();
 
-// Initialize the Express application
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// --- Middleware & Configuration ---
-
-// Set EJS as the templating engine
+// Templating and static files
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, '../views'));
-
-// --- 2. ADD MIDDLEWARE TO SERVE CSS and PARSE THE FORM ---
-// Serve static files (like style.css) from the "public" directory
 app.use(express.static(path.join(__dirname, '../public')));
-// Middleware to parse URL-encoded bodies (as sent by HTML forms)
 app.use(express.urlencoded({ extended: true }));
 
-// Session configuration
+// Session config
 app.use(session({
   secret: process.env.SESSION_SECRET || 'a-default-fallback-secret',
   resave: false,
@@ -40,16 +29,11 @@ app.use(session({
   }
 }));
 
-// --- Routes ---
-
-// --- 3. REGISTER THE AUTH ROUTES WITH THE APP ---
-// This tells Express to use the handlers from auth.js (like POST /login)
+// Routes
 app.use('/', authRoutes);
+app.use('/api/control', controlRoutes); // ✅ Now app is defined before use
 
-// This route now primarily serves the EJS template.
-// The POST logic is handled by the router above.
 app.get('/login', (req, res) => {
-  // Pass an empty error object so the template doesn't crash
   res.render('login', { title: 'Login - Web Console', error: null });
 });
 
@@ -65,7 +49,6 @@ app.get('/', (req, res) => {
   }
 });
 
-// --- Server Startup ---
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
 });
