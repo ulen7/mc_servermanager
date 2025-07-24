@@ -2,7 +2,7 @@
 
 > **Project Goal**: Create a lightweight, easy-to-use web console for small home Minecraft servers that prioritizes learning and simplicity over enterprise features.
 
-## 🎯 **Current Status**
+## **Current Status**
 - ✅ Basic web authentication
 - ✅ Real-time log streaming via Socket.IO
 - ✅ Server start/stop/restart controls
@@ -12,10 +12,10 @@
 
 ---
 
-## 📋 **Phase 1: Polish & Essential Improvements** *(Priority: HIGH)*
+## **Phase 1: Polish & Essential Improvements** *(Priority: HIGH)*
 > Focus: Make existing features rock-solid and improve daily usability
 
-### 🔧 **1.1 Console Experience Enhancements**
+### **1.1 Console Experience Enhancements**
 **Estimated Time: 1-2 weeks**
 
 - [ ] **Command History Navigation**
@@ -34,7 +34,7 @@
   - Add timestamps to all log entries
   - *Learning: Browser storage limits, data persistence*
 
-### 🎨 **1.2 User Interface Improvements**
+### **1.2 User Interface Improvements**
 **Estimated Time: 1 week**
 
 - [ ] **Dark Mode Toggle**
@@ -55,7 +55,7 @@
   - Connection status indicators
   - *Learning: Error handling patterns, user experience*
 
-### 📊 **1.3 Basic Server Information**
+### **1.3 Basic Server Information**
 **Estimated Time: 1 week**
 
 - [ ] **Simple Server Stats Dashboard**
@@ -73,10 +73,10 @@
 
 ---
 
-## 🚀 **Phase 2: Player Management & Core Features** *(Priority: MEDIUM-HIGH)*
+## **Phase 2: Player Management & Core Features** *(Priority: MEDIUM-HIGH)*
 > Focus: Essential tools for managing a home server with friends
 
-### 👥 **2.1 Player Management**
+### **2.1 Player Management**
 **Estimated Time: 2-3 weeks**
 
 - [ ] **Online Player Management**
@@ -97,7 +97,7 @@
   - Simple login history
   - *Learning: Data storage, time calculations*
 
-### 💬 **2.2 Communication Features**
+### **2.2 Communication Features**
 **Estimated Time: 1 week**
 
 - [ ] **Broadcast Messages**
@@ -116,10 +116,10 @@
 
 ---
 
-## 🔔 **Phase 3: Notifications & Automation** *(Priority: MEDIUM)*
+## **Phase 3: Notifications & Automation** *(Priority: MEDIUM)*
 > Focus: Smart alerts and basic automation for peace of mind
 
-### 📢 **3.1 Discord Integration** *(Your Favorite!)*
+### **3.1 Discord Integration** *(Your Favorite!)*
 **Estimated Time: 2 weeks**
 
 - [ ] **Basic Discord Webhook**
@@ -135,7 +135,7 @@
   - Optional: Simple Discord bot for server commands
   - *Learning: Discord API, rich content formatting*
 
-### ⏰ **3.2 Simple Automation**
+### **3.2 Simple Automation**
 **Estimated Time: 2 weeks**
 
 - [ ] **Scheduled Actions**
@@ -150,7 +150,7 @@
   - "Server empty" auto-shutdown (optional)
   - *Learning: Browser notification API, event-driven programming*
 
-### 💾 **3.3 Backup Enhancements**
+### **3.3 Backup Enhancements**
 **Estimated Time: 1 week**
 
 - [ ] **Improved Backup System**
@@ -162,10 +162,10 @@
 
 ---
 
-## 🔧 **Phase 4: Advanced Tools & Quality of Life** *(Priority: LOW-MEDIUM)*
+## **Phase 4: Advanced Tools & Quality of Life** *(Priority: LOW-MEDIUM)*
 > Focus: Nice-to-have features that make server management even easier
 
-### ⚙️ **4.1 Configuration Management**
+### **4.1 Configuration Management**
 **Estimated Time: 2-3 weeks**
 
 - [ ] **Server Settings Interface**
@@ -180,7 +180,7 @@
   - Mod compatibility checking
   - *Learning: File handling, dependency management*
 
-### 📈 **4.2 Performance Monitoring**
+### **4.2 Performance Monitoring**
 **Estimated Time: 2 weeks**
 
 - [ ] **Basic Performance Tracking**
@@ -195,7 +195,7 @@
   - Server optimization tips
   - *Learning: Performance analysis, advisory systems*
 
-### 🛠️ **4.3 Developer & Power User Features**
+### **4.3 Developer & Power User Features**
 **Estimated Time: 1-2 weeks**
 
 - [ ] **Enhanced Debugging**
@@ -212,7 +212,7 @@
 
 ---
 
-## 🎓 **Learning Outcomes by Phase**
+## **Learning Outcomes by Phase**
 
 ### **Phase 1 - Frontend Fundamentals**
 - Advanced JavaScript DOM manipulation
@@ -240,7 +240,7 @@
 
 ---
 
-## 🏁 **Success Metrics**
+## **Success Metrics**
 
 ### **Phase 1 Complete When:**
 - [ ] Console is mobile-friendly and has dark mode
@@ -264,7 +264,7 @@
 
 ---
 
-## 🚦 **Getting Started**
+## **Getting Started**
 
 ### **Next Steps:**
 1. **Pick one feature from Phase 1.1** that excites you most
