@@ -1,0 +1,24 @@
+services:
+  minecraft:
+    image: itzg/minecraft-server
+    container_name: mc_server
+    restart: unless-stopped
+    tty: true
+    stdin_open: true
+    ports:
+      - "25580:25580"
+      - "19150:19150/udp"
+    environment:
+      EULA: "TRUE"
+      VERSION: "1.21.6"
+      TYPE: "FABRIC"
+      MEMORY: "4G"
+      SERVER_PORT: "25580"
+      MAX_PLAYERS: "4"
+      MODE: "creative"
+      PVP: "false"
+      RESOURCE_PACK_ENFORCE: "TRUE"
+      SEED: "46182117"
+      MODRINTH_PROJECTS: "fabric-api"
+    volumes:
+      - ./mc_server:/data
