@@ -1,0 +1,30 @@
+# templates/web-console/docker-compose.web-console.yml
+# This gets integrated into the main docker-compose.yml by the deployment script
+
+services:
+  web-console:
+    build:
+      context: ./web-console
+      dockerfile: docker/Dockerfile
+    container_name: ${MC_CONTAINER}-web-console
+    restart: unless-stopped
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+    environment:
+      - PORT=${WEB_PORT:-3000}
+      - ADMIN_USER=${WEB_ADMIN_USER}
+      - ADMIN_PASS=${WEB_ADMIN_PASS}
+      - SESSION_SECRET=${WEB_SESSION_SECRET}
+      - MC_CONTAINER=${MC_CONTAINER}
+    volumes:
+      - ./web-console:/usr/src/app
+      - /usr/src/app/node_modules
+      - //var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      - minecraft
+    networks:
+      - minecraft-network
+
+networks:
+  minecraft-network:
+    driver: bridge
