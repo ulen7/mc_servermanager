@@ -3,7 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- Link to the stylesheet served from the 'public' folder -->
     <link rel="stylesheet" href="/css/style.css">
     <title>Console - Web Console</title>
 </head>
@@ -12,9 +11,9 @@
         <div class="header">
             <h1>🎮 Web Server Manager</h1>
             <p>Server Administration Console</p>
-            <div class="server-status">● Server Online</div>
+            <div class="server-status" id="serverStatusIndicator">● Server Online</div>
         </div>
-        <!-- Console Interface -->
+        
         <div id="consoleSection" class="console-container" style="display: block;">
             <div class="console-controls">
                 <div class="btn-group">
@@ -22,57 +21,167 @@
                     <button class="btn btn-stop" onclick="stopServer()">⏹️ Stop</button>
                     <button class="btn btn-restart" onclick="restartServer()">🔄 Restart</button>
                     <button class="btn btn-clear" onclick="clearConsole()">🗑️ Clear</button>
+                    <button class="btn btn-secondary" onclick="toggleAutoScroll()">📜 Auto-scroll: ON</button>
                 </div>
                 <div class="user-info">
-                    <!-- The username could be passed from the server in the future -->
+                    <span id="connectionStatus">🔌 Connecting...</span>
                     <span>👤 Logged in</span>
-                    <!-- The logout button is now a simple link to the /logout route -->
                     <a href="/logout" class="logout-btn">Logout</a>
                 </div>
             </div>
+            
             <div class="server-info">
                 <div class="info-grid">
                     <div class="info-item">
                         <div class="info-label">Server Status</div>
-                        <div class="info-value" id="serverStatus">Running</div>
+                        <div class="info-value" id="serverStatus">Unknown</div>
                     </div>
                     <div class="info-item">
-                        <div class="info-label">CPU Usage</div>
-                        <div class="info-value" id="cpuUsage">15%</div>
+                        <div class="info-label">Connection</div>
+                        <div class="info-value" id="socketStatus">Connecting...</div>
                     </div>
                     <div class="info-item">
-                        <div class="info-label">Memory Usage</div>
-                        <div class="info-value" id="memoryUsage">1.2GB/4GB</div>
+                        <div class="info-label">Log Lines</div>
+                        <div class="info-value" id="logCount">0</div>
                     </div>
                     <div class="info-item">
-                        <div class="info-label">Uptime</div>
-                        <div class="info-value" id="uptime">2h 34m</div>
+                        <div class="info-label">Container</div>
+                        <div class="info-value" id="containerName"><%= containerName || 'mc_server' %></div>
                     </div>
                 </div>
             </div>
+            
             <div class="console-output" id="consoleOutput">
-                <div class="console-line info">[12:34:56] [Server thread/INFO]: Server process started.</div>
-                <div class="console-line success">[12:35:02] [Server thread/INFO]: Done! For help, type "help"</div>
+                <div class="console-line info">[System] Initializing console interface...</div>
             </div>
+            
             <div class="command-input">
-                <input type="text" id="commandInput" placeholder="Enter server command..." onkeypress="handleCommandInput(event)">
-                <button onclick="sendCommand()">Send</button>
+                <input type="text" id="commandInput" placeholder="Enter Minecraft command..." onkeypress="handleCommandInput(event)">
+                <button onclick="sendCommand()" id="sendBtn">Send</button>
             </div>
         </div>
     </div>
 
+    <!-- Socket.IO Client -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
+    
     <script>
-        // Helper function to add console messages
+        // Socket.IO connection
+        const socket = io();
+        let autoScroll = true;
+        let logCount = 0;
+
+        // Connection event handlers
+        socket.on('connect', () => {
+            console.log('Connected to server');
+            updateConnectionStatus('Connected', 'success');
+            addConsoleMessage('success', 'Connected to log stream');
+        });
+
+        socket.on('disconnect', () => {
+            console.log('Disconnected from server');
+            updateConnectionStatus('Disconnected', 'error');
+            addConsoleMessage('error', 'Disconnected from server');
+        });
+
+        socket.on('connect_error', (error) => {
+            console.error('Connection error:', error);
+            updateConnectionStatus('Connection Error', 'error');
+            addConsoleMessage('error', 'Connection error occurred');
+        });
+
+        // Real-time log handler
+        socket.on('log', (data) => {
+            addLogMessage(data);
+            updateLogCount();
+        });
+
+        // Server status updates
+        socket.on('serverStatus', (data) => {
+            updateServerStatus(data.status, data.message);
+            addConsoleMessage('info', `Server status: ${data.message}`);
+        });
+
+        // Helper function to update connection status
+        function updateConnectionStatus(status, type) {
+            const connectionStatus = document.getElementById('connectionStatus');
+            const socketStatus = document.getElementById('socketStatus');
+            
+            const icons = {
+                'success': '🟢',
+                'error': '🔴',
+                'warning': '🟡'
+            };
+            
+            connectionStatus.textContent = `${icons[type] || '🔌'} ${status}`;
+            socketStatus.textContent = status;
+        }
+
+        // Helper function to add log messages from Socket.IO
+        function addLogMessage(data) {
+            const consoleOutput = document.getElementById('consoleOutput');
+            const messageDiv = document.createElement('div');
+            
+            // Determine CSS class based on log type
+            let cssClass = 'console-line';
+            if (data.type === 'error') cssClass += ' error';
+            else if (data.type === 'warn') cssClass += ' warning';
+            else if (data.type === 'command') cssClass += ' command';
+            else cssClass += ' info';
+            
+            messageDiv.className = cssClass;
+            
+            // Format timestamp
+            const timestamp = new Date(data.timestamp).toLocaleTimeString();
+            messageDiv.innerHTML = `<span class="timestamp">[${timestamp}]</span> ${escapeHtml(data.message)}`;
+            
+            consoleOutput.appendChild(messageDiv);
+            
+            // Auto-scroll if enabled
+            if (autoScroll) {
+                consoleOutput.scrollTop = consoleOutput.scrollHeight;
+            }
+        }
+
+        // Helper function to add console messages (local)
         function addConsoleMessage(type, message) {
             const consoleOutput = document.getElementById('consoleOutput');
             const timestamp = new Date().toLocaleTimeString();
             const messageDiv = document.createElement('div');
             messageDiv.className = `console-line ${type}`;
-            messageDiv.textContent = `[${timestamp}] ${message}`;
+            messageDiv.innerHTML = `<span class="timestamp">[${timestamp}]</span> [System] ${escapeHtml(message)}`;
             consoleOutput.appendChild(messageDiv);
             
-            // Auto-scroll to bottom
-            consoleOutput.scrollTop = consoleOutput.scrollHeight;
+            if (autoScroll) {
+                consoleOutput.scrollTop = consoleOutput.scrollHeight;
+            }
+            
+            updateLogCount();
+        }
+
+        // Update log count
+        function updateLogCount() {
+            logCount++;
+            document.getElementById('logCount').textContent = logCount;
+        }
+
+        // Update server status
+        function updateServerStatus(status, message) {
+            const serverStatus = document.getElementById('serverStatus');
+            const statusIndicator = document.getElementById('serverStatusIndicator');
+            
+            serverStatus.textContent = status.charAt(0).toUpperCase() + status.slice(1);
+            
+            if (status === 'running') {
+                statusIndicator.textContent = '● Server Online';
+                statusIndicator.style.color = 'green';
+            } else if (status === 'stopped') {
+                statusIndicator.textContent = '● Server Offline';
+                statusIndicator.style.color = 'red';
+            } else {
+                statusIndicator.textContent = '● Server Unknown';
+                statusIndicator.style.color = 'orange';
+            }
         }
 
         // Server control functions
@@ -82,8 +191,7 @@
                 .then(res => res.json())
                 .then(data => {
                     if (data.success) {
-                        addConsoleMessage('success', 'Server started successfully');
-                        document.getElementById('serverStatus').textContent = 'Running';
+                        addConsoleMessage('success', 'Server start command sent');
                     } else {
                         throw new Error(data.error || 'Unknown error');
                     }
@@ -99,8 +207,7 @@
                 .then(res => res.json())
                 .then(data => {
                     if (data.success) {
-                        addConsoleMessage('error', 'Server stopped');
-                        document.getElementById('serverStatus').textContent = 'Stopped';
+                        addConsoleMessage('success', 'Server stop command sent');
                     } else {
                         throw new Error(data.error || 'Unknown error');
                     }
@@ -116,8 +223,7 @@
                 .then(res => res.json())
                 .then(data => {
                     if (data.success) {
-                        addConsoleMessage('success', 'Server restarted successfully');
-                        document.getElementById('serverStatus').textContent = 'Running';
+                        addConsoleMessage('success', 'Server restart command sent');
                     } else {
                         throw new Error(data.error || 'Unknown error');
                     }
@@ -131,7 +237,17 @@
         function clearConsole() {
             const consoleOutput = document.getElementById('consoleOutput');
             consoleOutput.innerHTML = '';
+            logCount = 0;
+            updateLogCount();
             addConsoleMessage('info', 'Console cleared');
+        }
+
+        // Toggle auto-scroll
+        function toggleAutoScroll() {
+            autoScroll = !autoScroll;
+            const btn = event.target;
+            btn.textContent = `📜 Auto-scroll: ${autoScroll ? 'ON' : 'OFF'}`;
+            addConsoleMessage('info', `Auto-scroll ${autoScroll ? 'enabled' : 'disabled'}`);
         }
 
         // Command input functions
@@ -140,9 +256,8 @@
             const command = commandInput.value.trim();
             
             if (command) {
-                addConsoleMessage('info', `> ${command}`);
+                addConsoleMessage('command', `> ${command}`);
                 
-                // Send command to server
                 fetch('/api/command', {
                     method: 'POST',
                     headers: {
@@ -154,7 +269,7 @@
                 .then(data => {
                     if (data.success) {
                         if (data.output) {
-                            addConsoleMessage('info', data.output);
+                            addConsoleMessage('info', `Command output: ${data.output}`);
                         }
                     } else {
                         addConsoleMessage('error', data.error || 'Command failed');
@@ -164,7 +279,6 @@
                     addConsoleMessage('error', `Failed to execute command: ${err.message}`);
                 });
                 
-                // Clear input
                 commandInput.value = '';
             }
         }
@@ -176,10 +290,17 @@
             }
         }
 
-        // Optional: Add some initial status checking when page loads
+        // Escape HTML to prevent XSS
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Initialize when page loads
         document.addEventListener('DOMContentLoaded', function() {
-            // You could add a function here to check initial server status
             addConsoleMessage('info', 'Console interface loaded');
+            addConsoleMessage('info', 'Connecting to real-time log stream...');
         });
     </script>
 </body>
