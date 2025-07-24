@@ -22,6 +22,7 @@
                     <button class="btn btn-restart" onclick="restartServer()">🔄 Restart</button>
                     <button class="btn btn-clear" onclick="clearConsole()">🗑️ Clear</button>
                     <button class="btn btn-secondary" onclick="toggleAutoScroll()">📜 Auto-scroll: ON</button>
+                    <button class="btn btn-secondary" onclick="reconnectLogs()">🔄 Reconnect Logs</button>
                 </div>
                 <div class="user-info">
                     <span id="connectionStatus">🔌 Connecting...</span>
@@ -92,6 +93,11 @@
 
         // Real-time log handler
         socket.on('log', (data) => {
+            // If this is a connection success message, update connection status
+            if (data.type === 'success' && data.message.includes('Connected to')) {
+                updateConnectionStatus('Connected', 'success');
+            }
+            
             addLogMessage(data);
             updateLogCount();
         });
@@ -100,6 +106,20 @@
         socket.on('serverStatus', (data) => {
             updateServerStatus(data.status, data.message);
             addConsoleMessage('info', `Server status: ${data.message}`);
+        });
+
+        // Handle log stream ending
+        socket.on('logStreamEnded', (data) => {
+            addConsoleMessage('warn', 'Log stream disconnected (server likely stopped)');
+            updateConnectionStatus('Log Stream Ended', 'warning');
+        });
+
+        // Handle server requesting log stream restart
+        socket.on('restartLogStream', () => {
+            addConsoleMessage('info', 'Restarting log stream...');
+            updateConnectionStatus('Reconnecting...', 'warning');
+            // Request a new log stream from the server
+            socket.emit('requestLogs', { tail: '50' });
         });
 
         // Helper function to update connection status
@@ -248,6 +268,12 @@
             const btn = event.target;
             btn.textContent = `📜 Auto-scroll: ${autoScroll ? 'ON' : 'OFF'}`;
             addConsoleMessage('info', `Auto-scroll ${autoScroll ? 'enabled' : 'disabled'}`);
+        }
+
+        // Reconnect logs manually
+        function reconnectLogs() {
+            addConsoleMessage('info', 'Manually reconnecting to log stream...');
+            socket.emit('requestLogs', { tail: '50' });
         }
 
         // Command input functions

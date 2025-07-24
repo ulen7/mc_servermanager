@@ -61,6 +61,12 @@ io.on('connection', (socket) => {
         console.log('Client requested logs with options:', options);
         startLogStream(socket, options);
     });
+    
+    // Handle manual log stream restart
+    socket.on('restartLogStream', () => {
+        console.log('Client requested log stream restart');
+        startLogStream(socket);
+    });
 });
 
 // Function to start streaming Docker logs
@@ -70,11 +76,43 @@ function startLogStream(socket, options = {}) {
     // Stop existing stream if any
     stopLogStream(socketId);
     
+    // First check if container is running
+    const { exec } = require('child_process');
+    exec(`docker inspect -f '{{.State.Running}}' ${MC_CONTAINER}`, (error, stdout, stderr) => {
+        if (error) {
+            console.error('Container inspect error:', error);
+            socket.emit('log', {
+                timestamp: new Date().toISOString(),
+                message: `Error checking container status: ${error.message}`,
+                type: 'error'
+            });
+            return;
+        }
+        
+        const isRunning = stdout.trim() === 'true';
+        if (!isRunning) {
+            socket.emit('log', {
+                timestamp: new Date().toISOString(),
+                message: `Container ${MC_CONTAINER} is not running. Start the server to see logs.`,
+                type: 'warn'
+            });
+            return;
+        }
+        
+        // Container is running, start log stream
+        startActualLogStream(socket, options);
+    });
+}
+
+// Separate function for the actual log streaming
+function startActualLogStream(socket, options = {}) {
+    const socketId = socket.id;
+    
     // Default options for docker logs
     const dockerArgs = [
         'logs',
         '--follow',
-        '--tail', options.tail || '50', // Show last 50 lines by default
+        '--tail', options.tail || '50',
         MC_CONTAINER
     ];
     
@@ -85,6 +123,13 @@ function startLogStream(socket, options = {}) {
     
     // Store the process reference
     logStreams.set(socketId, logProcess);
+    
+    // Send confirmation to client
+    socket.emit('log', {
+        timestamp: new Date().toISOString(),
+        message: `Connected to ${MC_CONTAINER} log stream`,
+        type: 'success'
+    });
     
     // Handle stdout (normal logs)
     logProcess.stdout.on('data', (data) => {
@@ -126,8 +171,9 @@ function startLogStream(socket, options = {}) {
     
     // Handle process exit
     logProcess.on('close', (code) => {
-        console.log(`Log stream closed with code ${code}`);
+        console.log(`Log stream closed with code ${code} for socket ${socketId}`);
         logStreams.delete(socketId);
+        
         if (code !== 0) {
             socket.emit('log', {
                 timestamp: new Date().toISOString(),
@@ -135,6 +181,9 @@ function startLogStream(socket, options = {}) {
                 type: 'warn'
             });
         }
+        
+        // Notify client that log stream ended
+        socket.emit('logStreamEnded', { code: code });
     });
 }
 
@@ -220,6 +269,12 @@ app.post('/api/control/start', requireAuth, (req, res) => {
         
         // Broadcast to all connected clients
         io.emit('serverStatus', { status: 'running', message: 'Server started' });
+        
+        // Wait longer for container to fully start, then restart log streams
+        setTimeout(() => {
+            console.log('Restarting log streams for all connected clients...');
+            io.emit('restartLogStream');
+        }, 5000); // Increased to 5 seconds
     });
 });
 
@@ -254,6 +309,12 @@ app.post('/api/control/restart', requireAuth, (req, res) => {
         
         // Broadcast to all connected clients
         io.emit('serverStatus', { status: 'running', message: 'Server restarted' });
+        
+        // Wait longer for container to fully restart, then restart log streams
+        setTimeout(() => {
+            console.log('Restarting log streams after restart...');
+            io.emit('restartLogStream');
+        }, 8000); // Increased to 8 seconds for restart
     });
 });
 
