@@ -55,9 +55,12 @@
             <div class="console-output" id="consoleOutput">
                 <div class="console-line info">[System] Initializing console interface...</div>
             </div>
-            
             <div class="command-input">
-                <input type="text" id="commandInput" placeholder="Enter Minecraft command..." onkeypress="handleCommandInput(event)">
+                <input type="text" 
+                       id="commandInput" 
+                       placeholder="Enter Minecraft command... (↑/↓ for history)" 
+                       onkeypress="handleCommandInput(event)"
+                       onkeydown="handleHistoryNavigation(event)">
                 <button onclick="sendCommand()" id="sendBtn">Send</button>
             </div>
         </div>
@@ -277,13 +280,21 @@
         }
 
         // Command input functions
+
+        // Updated sendCommand function with history support
+
         function sendCommand() {
             const commandInput = document.getElementById('commandInput');
             const command = commandInput.value.trim();
             
             if (command) {
+                // Add to command history BEFORE sending
+                commandHistory.addCommand(command);
+                
+                // Add to console display
                 addConsoleMessage('command', `> ${command}`);
                 
+                // Send to server
                 fetch('/api/command', {
                     method: 'POST',
                     headers: {
@@ -305,7 +316,21 @@
                     addConsoleMessage('error', `Failed to execute command: ${err.message}`);
                 });
                 
+                // Clear input
                 commandInput.value = '';
+                
+                // Update command history statistics display
+                function updateCommandHistoryStats() {
+                    const count = commandHistory.getCommandCount();
+                    // You can add this to your info grid or create a small indicator
+                    console.log(`Command history: ${count}/50 commands stored`);
+                }
+
+// Show command history stats on page load
+document.addEventListener('DOMContentLoaded', function() {
+    updateCommandHistoryStats();
+    addConsoleMessage('info', `Command history loaded: ${commandHistory.getCommandCount()} previous commands available`);
+});
             }
         }
 
@@ -328,6 +353,138 @@
             addConsoleMessage('info', 'Console interface loaded');
             addConsoleMessage('info', 'Connecting to real-time log stream...');
         });
+
+        <!-- NEW COMMANDS FUNCTIONS -->
+
+        // Command History Management
+
+        class CommandHistory {
+            constructor() {
+                this.commands = this.loadFromStorage();
+                this.currentIndex = -1; // -1 means "new command"
+                this.tempCommand = ''; // Store current input when navigating
+            }
+            
+            // Load commands from localStorage
+            loadFromStorage() {
+                try {
+                    const stored = localStorage.getItem('minecraft_command_history');
+                    return stored ? JSON.parse(stored) : [];
+                } catch (e) {
+                    console.warn('Failed to load command history:', e);
+                    return [];
+                }
+            }
+            
+            // Save commands to localStorage
+            saveToStorage() {
+                try {
+                    localStorage.setItem('minecraft_command_history', JSON.stringify(this.commands));
+                } catch (e) {
+                    console.warn('Failed to save command history:', e);
+                }
+            }
+            
+            // Add new command to history
+            addCommand(command) {
+                if (!command || command.trim() === '') return;
+                
+                const trimmedCommand = command.trim();
+                
+                // Remove command if it already exists (move to end)
+                const existingIndex = this.commands.indexOf(trimmedCommand);
+                if (existingIndex !== -1) {
+                    this.commands.splice(existingIndex, 1);
+                }
+                
+                // Add to end of array
+                this.commands.push(trimmedCommand);
+                
+                // Keep only last 50 commands
+                if (this.commands.length > 50) {
+                    this.commands = this.commands.slice(-50);
+                }
+                
+                // Reset navigation state
+                this.currentIndex = -1;
+                this.tempCommand = '';
+                
+                // Save to storage
+                this.saveToStorage();
+            }
+            
+            // Navigate to previous command (↑)
+            navigateUp() {
+                if (this.commands.length === 0) return null;
+                
+                // If at newest position, store current input
+                if (this.currentIndex === -1) {
+                    this.tempCommand = document.getElementById('commandInput').value;
+                }
+                
+                // Move up in history (towards older commands)
+                if (this.currentIndex < this.commands.length - 1) {
+                    this.currentIndex++;
+                }
+                
+                return this.commands[this.commands.length - 1 - this.currentIndex];
+            }
+            
+            // Navigate to next command (↓)
+            navigateDown() {
+                if (this.commands.length === 0) return null;
+                
+                // Move down in history (towards newer commands)
+                if (this.currentIndex > -1) {
+                    this.currentIndex--;
+                }
+                
+                // If back to newest position, return temp command
+                if (this.currentIndex === -1) {
+                    return this.tempCommand;
+                }
+                
+                return this.commands[this.commands.length - 1 - this.currentIndex];
+            }
+            
+            // Get current command count for display
+            getCommandCount() {
+                return this.commands.length;
+            }
+        }
+        
+        // Initialize command history
+        const commandHistory = new CommandHistory();
+
+        // Handle arrow key navigation for command history
+        function handleHistoryNavigation(event) {
+            const commandInput = document.getElementById('commandInput');
+            
+            // Handle arrow keys
+            if (event.key === 'ArrowUp') {
+                event.preventDefault(); // Prevent cursor movement
+                const command = commandHistory.navigateUp();
+                if (command !== null) {
+                    commandInput.value = command;
+                    // Move cursor to end
+                    commandInput.setSelectionRange(commandInput.value.length, commandInput.value.length);
+                }
+                return false;
+            }
+            
+            if (event.key === 'ArrowDown') {
+                event.preventDefault(); // Prevent cursor movement
+                const command = commandHistory.navigateDown();
+                if (command !== null) {
+                    commandInput.value = command;
+                    // Move cursor to end
+                    commandInput.setSelectionRange(commandInput.value.length, commandInput.value.length);
+                }
+                return false;
+            }
+        }
+
+
     </script>
 </body>
 </html>
