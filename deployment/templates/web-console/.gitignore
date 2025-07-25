@@ -19,6 +19,7 @@ logs/
 *.sock
 docker-compose.override.yml
 docker/entrypoint.sh.bak
+docker-compose.yml
 
 # === OS and Editor Junk ===
 .DS_Store

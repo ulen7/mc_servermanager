@@ -142,6 +142,25 @@
 
         // Helper function to add log messages from Socket.IO
         function addLogMessage(data) {
+            // Filter out RCON noise messages
+            const message = data.message;
+            
+            // Skip RCON technical messages
+            const rconPatterns = [
+                /RCON LISTENER.*started/i,
+                /RCON Client.*started/i,
+                /RCON Client.*shutting down/i,
+                /Thread RCON Client/i,
+                /\[RCON\]/i,                    // General RCON tags
+                /^\s*$/,                        // Empty lines
+                /Connection.*established/i,      // Connection messages
+            ];
+            
+            const isRconNoise = rconPatterns.some(pattern => pattern.test(message));
+            if (isRconNoise) {
+                return; // Skip these messages
+            }
+            
             const consoleOutput = document.getElementById('consoleOutput');
             const messageDiv = document.createElement('div');
             
