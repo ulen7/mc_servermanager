@@ -51,7 +51,34 @@
                     </div>
                 </div>
             </div>
-            
+            <div class="console-filters">
+                <div class="filter-buttons">
+                    <button class="filter-btn active" data-filter="all" onclick="setLogFilter('all')">
+                        📋 All <span class="filter-count" id="count-all">0</span>
+                    </button>
+                    <button class="filter-btn" data-filter="error" onclick="setLogFilter('error')">
+                        ❌ Errors <span class="filter-count" id="count-error">0</span>
+                    </button>
+                    <button class="filter-btn" data-filter="player" onclick="setLogFilter('player')">
+                        👤 Players <span class="filter-count" id="count-player">0</span>
+                    </button>
+                    <button class="filter-btn" data-filter="server" onclick="setLogFilter('server')">
+                        🖥️ Server <span class="filter-count" id="count-server">0</span>
+                    </button>
+                    <button class="filter-btn" data-filter="command" onclick="setLogFilter('command')">
+                        ⚡ Commands <span class="filter-count" id="count-command">0</span>
+                    </button>
+                </div>
+                
+                <div class="filter-search">
+                    <input type="text" 
+                        id="logSearchInput" 
+                        placeholder="🔍 Search logs..." 
+                        oninput="filterLogsBySearch()"
+                        onkeydown="handleSearchKeyboard(event)">
+                    <button onclick="clearSearch()" id="clearSearchBtn" style="display: none;">✕</button>
+                </div>
+            </div>
             <div class="console-output" id="consoleOutput">
                 <div class="console-line info">[System] Initializing console interface...</div>
             </div>
@@ -140,12 +167,153 @@
             socketStatus.textContent = status;
         }
 
-        // Helper function to add log messages from Socket.IO
-        function addLogMessage(data) {
-            // Filter out RCON noise messages
-            const message = data.message;
+        // Log Filter Management
+        class LogFilter {
+            constructor() {
+                this.activeFilter = 'all';
+                this.searchTerm = '';
+                this.logCounts = {
+                    all: 0,
+                    error: 0,
+                    player: 0,
+                    server: 0,
+                    command: 0,
+                    info: 0
+                };
+            }
             
-            // Skip RCON technical messages
+            // Classify log message into category
+            classifyLogMessage(message, type) {
+                const msg = message.toLowerCase();
+                
+                // Command messages (highest priority)
+                if (type === 'command' || msg.startsWith('>')) {
+                    return 'command';
+                }
+                
+                // Error messages
+                if (type === 'error' || 
+                    msg.includes('error') || 
+                    msg.includes('exception') || 
+                    msg.includes('failed') || 
+                    msg.includes('crash')) {
+                    return 'error';
+                }
+                
+                // Player activity
+                if (msg.includes('joined the game') ||
+                    msg.includes('left the game') ||
+                    msg.includes('logged in') ||
+                    msg.includes('logged out') ||
+                    msg.includes('<') ||  // Chat messages
+                    msg.includes('whispers to you') ||
+                    msg.includes('achievement') ||
+                    msg.includes('advancement')) {
+                    return 'player';
+                }
+                
+                // Server events
+                if (msg.includes('starting minecraft server') ||
+                    msg.includes('done!') ||
+                    msg.includes('stopping') ||
+                    msg.includes('saved the game') ||
+                    msg.includes('saving') ||
+                    msg.includes('loaded') ||
+                    msg.includes('generating') ||
+                    msg.includes('preparing spawn') ||
+                    msg.includes('time elapsed')) {
+                    return 'server';
+                }
+                
+                // Default to info
+                return 'info';
+            }
+            
+            // Update log counts
+            updateLogCount(category) {
+                this.logCounts[category]++;
+                this.logCounts.all++;
+                
+                // Update UI counters
+                Object.keys(this.logCounts).forEach(cat => {
+                    const countElement = document.getElementById(`count-${cat}`);
+                    if (countElement) {
+                        countElement.textContent = this.logCounts[cat];
+                    }
+                });
+            }
+            
+            // Check if log should be visible with current filters
+            shouldShowLog(logElement) {
+                const category = logElement.dataset.category;
+                const message = logElement.textContent.toLowerCase();
+                
+                // Check category filter
+                const categoryMatch = this.activeFilter === 'all' || category === this.activeFilter;
+                
+                // Check search filter
+                const searchMatch = !this.searchTerm || message.includes(this.searchTerm.toLowerCase());
+                
+                return categoryMatch && searchMatch;
+            }
+            
+            // Apply current filters to all logs
+            applyFilters() {
+                const allLogs = document.querySelectorAll('.console-line');
+                let visibleCount = 0;
+                
+                allLogs.forEach(logElement => {
+                    if (this.shouldShowLog(logElement)) {
+                        logElement.classList.remove('hidden');
+                        visibleCount++;
+                    } else {
+                        logElement.classList.add('hidden');
+                    }
+                });
+                
+                // Update search results indicator
+                this.updateSearchIndicator(visibleCount, allLogs.length);
+            }
+            
+            // Update search results indicator
+            updateSearchIndicator(visible, total) {
+                const searchInput = document.getElementById('logSearchInput');
+                const clearBtn = document.getElementById('clearSearchBtn');
+                
+                if (this.searchTerm) {
+                    searchInput.style.borderColor = visible > 0 ? '#28a745' : '#dc3545';
+                    clearBtn.style.display = 'flex';
+                    
+                    if (visible === 0) {
+                        searchInput.placeholder = `No results for "${this.searchTerm}"`;
+                    } else {
+                        searchInput.placeholder = `${visible} results for "${this.searchTerm}"`;
+                    }
+                } else {
+                    searchInput.style.borderColor = '#ced4da';
+                    clearBtn.style.display = 'none';
+                    searchInput.placeholder = '🔍 Search logs...';
+                }
+            }
+            
+            // Highlight search terms in text
+            highlightSearchTerm(text, term) {
+                if (!term) return text;
+                
+                const regex = new RegExp(`(${term})`, 'gi');
+                return text.replace(regex, '<span class="search-highlight">$1</span>');
+            }
+        }
+
+        // Initialize log filter
+        const logFilter = new LogFilter();
+        
+        // Helper function to add log messages from Socket.IO
+          
+        // Updated helper function to add log messages from Socket.IO
+        function addLogMessage(data) {
+            // Filter out RCON noise messages (your existing code)
+            const message = data.message; 
             const rconPatterns = [
                 /RCON LISTENER.*started/i,
                 /RCON Client.*started/i,
@@ -158,31 +326,111 @@
             
             const isRconNoise = rconPatterns.some(pattern => pattern.test(message));
             if (isRconNoise) {
-                return; // Skip these messages
+                return;
             }
             
             const consoleOutput = document.getElementById('consoleOutput');
             const messageDiv = document.createElement('div');
             
-            // Determine CSS class based on log type
-            let cssClass = 'console-line';
-            if (data.type === 'error') cssClass += ' error';
-            else if (data.type === 'warn') cssClass += ' warning';
-            else if (data.type === 'command') cssClass += ' command';
-            else cssClass += ' info';
+            // Classify the log message
+            const category = logFilter.classifyLogMessage(message, data.type);
             
-            messageDiv.className = cssClass;
+            // Set CSS classes
+            messageDiv.className = `console-line ${category}`;
+            messageDiv.dataset.category = category;
             
             // Format timestamp
             const timestamp = new Date(data.timestamp).toLocaleTimeString();
-            messageDiv.innerHTML = `<span class="timestamp">[${timestamp}]</span> ${escapeHtml(data.message)}`;
             
+            // Apply search highlighting if needed
+            const displayMessage = logFilter.highlightSearchTerm(escapeHtml(message), logFilter.searchTerm);
+            
+            messageDiv.innerHTML = `<span class="timestamp">[${timestamp}]</span> ${displayMessage}`;
+            
+            // Add to console
             consoleOutput.appendChild(messageDiv);
             
-            // Auto-scroll if enabled
-            if (autoScroll) {
+            // Update counts
+            logFilter.updateLogCount(category);
+            
+            // Apply current filters to new message
+            if (!logFilter.shouldShowLog(messageDiv)) {
+                messageDiv.classList.add('hidden');
+            }
+            
+            // Auto-scroll if enabled and log is visible
+            if (autoScroll && !messageDiv.classList.contains('hidden')) {
                 consoleOutput.scrollTop = consoleOutput.scrollHeight;
             }
+            
+            // Update log count in your existing counter
+            updateLogCount();
+        }
+
+        // Set active log filter
+        function setLogFilter(filterType) {
+            // Update active button
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.querySelector(`[data-filter="${filterType}"]`).classList.add('active');
+            
+            // Update filter state
+            logFilter.activeFilter = filterType;
+            
+            // Apply filters
+            logFilter.applyFilters();
+            
+            // Add to console message
+            addConsoleMessage('info', `Filter changed to: ${filterType}`);
+        }
+
+        // Filter logs by search term
+        function filterLogsBySearch() {
+            const searchInput = document.getElementById('logSearchInput');
+            logFilter.searchTerm = searchInput.value.trim();
+            
+            // Re-highlight all messages with new search term
+            const allLogs = document.querySelectorAll('.console-line');
+            allLogs.forEach(logElement => {
+                const timestampSpan = logElement.querySelector('.timestamp');
+                const originalText = logElement.textContent;
+                const timestampText = timestampSpan ? timestampSpan.textContent : '';
+                const messageText = originalText.replace(timestampText, '').trim();
+                
+                const highlightedMessage = logFilter.highlightSearchTerm(escapeHtml(messageText), logFilter.searchTerm);
+                
+                if (timestampSpan) {
+                    logElement.innerHTML = `${timestampSpan.outerHTML} ${highlightedMessage}`;
+                }
+            });
+            
+            // Apply filters
+            logFilter.applyFilters();
+        }
+
+        // Handle keyboard shortcuts for search
+        function handleSearchKeyboard(event) {
+            if (event.key === 'Escape') {
+                clearSearch();
+            }
+        }
+
+        // Clear search
+        function clearSearch() {
+            const searchInput = document.getElementById('logSearchInput');
+            searchInput.value = '';
+            logFilter.searchTerm = '';
+            
+            // Remove highlighting from all messages
+            const allLogs = document.querySelectorAll('.console-line');
+            allLogs.forEach(logElement => {
+                const text = logElement.innerHTML.replace(/<span class="search-highlight">(.*?)<\/span>/g, '$1');
+                logElement.innerHTML = text;
+            });
+            
+            // Apply filters
+            logFilter.applyFilters();
         }
 
         // Helper function to add console messages (local)

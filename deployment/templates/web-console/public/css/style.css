@@ -348,6 +348,159 @@ body {
     background: #c0392b;
 }
 
+/* Filter Bar Styling */
+.console-filters {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    padding: 10px;
+    background-color: #f8f9fa;
+    border-radius: 6px;
+    border: 1px solid #dee2e6;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.filter-buttons {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.filter-btn {
+    padding: 6px 12px;
+    border: 1px solid #6c757d;
+    background-color: white;
+    color: #6c757d;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.filter-btn:hover {
+    background-color: #e9ecef;
+    transform: translateY(-1px);
+}
+
+.filter-btn.active {
+    background-color: #007bff;
+    color: white;
+    border-color: #007bff;
+    font-weight: bold;
+}
+
+.filter-count {
+    background-color: rgba(255, 255, 255, 0.3);
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-size: 10px;
+    min-width: 18px;
+    text-align: center;
+}
+
+.filter-search {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    position: relative;
+}
+
+#logSearchInput {
+    padding: 6px 12px;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    font-size: 12px;
+    width: 200px;
+    background-color: white;
+}
+
+#logSearchInput:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+#clearSearchBtn {
+    background: #dc3545;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    cursor: pointer;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Enhanced log line styling */
+.console-line {
+    margin-bottom: 2px;
+    padding: 2px 0;
+    transition: opacity 0.2s ease;
+}
+
+.console-line.hidden {
+    display: none;
+}
+
+.console-line.error {
+    color: #dc3545;
+    font-weight: bold;
+}
+
+.console-line.player {
+    color: #28a745;
+}
+
+.console-line.server {
+    color: #6f42c1;
+}
+
+.console-line.command {
+    color: #fd7e14;
+    font-weight: bold;
+}
+
+.console-line.info {
+    color: #17a2b8;
+}
+
+/* Search highlighting */
+.search-highlight {
+    background-color: #fff3cd;
+    color: #856404;
+    padding: 1px 2px;
+    border-radius: 2px;
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+    .console-filters {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .filter-buttons {
+        justify-content: center;
+    }
+    
+    .filter-search {
+        justify-content: center;
+    }
+    
+    #logSearchInput {
+        width: 100%;
+        max-width: 300px;
+    }
+}
+
 @media (max-width: 768px) {
     .container {
         margin: 10px;
