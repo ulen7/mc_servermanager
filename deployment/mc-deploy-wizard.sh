@@ -550,6 +550,13 @@ fi
 
 cd "$SERVER_DIR" || exit 1
 
+# Add this prompt for launching
+LAUNCH_NOW=$(prompt_yes_no "Would you like to start the server now? (y/n) [y]: " "y")
+
+# === 6. Generate and Launch ===
+generate_docker_compose
+launch_services
+
 # === Modified Docker Compose Generation ===
 # This replaces the existing docker-compose.yml generation section
 
@@ -805,30 +812,19 @@ EOF
     log "INFO" "docker-compose.yml created in: $SERVER_DIR"
 }
 
-# Verify file was created successfully
-if [ -f "$COMPOSE_FILE" ]; then
-    echo "✓ docker-compose.yml created successfully!"
-    log "INFO" "docker-compose.yml created in: $SERVER_DIR"
-else
-    log "ERROR" "Failed to create docker-compose.yml"
-    exit 1
-fi
-
-echo ""
-echo "To start your server, run these commands:"
-echo "   cd $SERVER_DIR"
-if [ "$ENABLE_TAILSCALE" == "yes" ]; then
-    echo "   docker compose --env-file .env up -d"
-else
-    echo "   docker compose up -d"
-fi
-
 # === 7. Launch & Final Configuration ===
 
 
 launch_services() {
     if [ "$LAUNCH_NOW" == "no" ]; then
-        echo "All set! You can start your server later using the commands provided."
+        echo ""
+        echo "All set! You can start your server later using these commands:"
+        echo "   cd $SERVER_DIR"
+        if [ "$ENABLE_TAILSCALE" == "yes" ] || [ "$ENABLE_WEB_CONSOLE" == "yes" ]; then
+            echo "   docker compose --env-file .env up -d --build"
+        else
+            echo "   docker compose up -d --build"
+        fi
         log "INFO" "Services will be launched manually"
         return 0
     fi
