@@ -550,13 +550,6 @@ fi
 
 cd "$SERVER_DIR" || exit 1
 
-# Add this prompt for launching
-LAUNCH_NOW=$(prompt_yes_no "Would you like to start the server now? (y/n) [y]: " "y")
-
-# === 6. Generate and Launch ===
-generate_docker_compose
-launch_services
-
 # === Modified Docker Compose Generation ===
 # This replaces the existing docker-compose.yml generation section
 
@@ -814,7 +807,6 @@ EOF
 
 # === 7. Launch & Final Configuration ===
 
-
 launch_services() {
     if [ "$LAUNCH_NOW" == "no" ]; then
         echo ""
@@ -914,6 +906,10 @@ launch_services() {
     log "INFO" "Server has initialized successfully."
 }
 
+# Add this prompt for launching
+LAUNCH_NOW=$(prompt_yes_no "Would you like to start the server now? (y/n) [y]: " "y")
+
+# === 6. Generate and Launch ===
 generate_docker_compose
 launch_services
 
