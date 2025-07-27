@@ -563,7 +563,7 @@ generate_docker_compose() {
     
     # Check if the server type is Fabric to add mods
     if [ "$SERVER_TYPE" == "fabric" ]; then
-        MODS_LIST="fabric-api, viaversion,viafabric"
+        MODS_LIST="fabric-api,viaversion,viafabric"
         if [ "$USE_GEYSER" == "yes" ]; then
             MODS_LIST="${MODS_LIST},floodgate,skinrestorer"
             log "INFO" "Mods added: $MODS_LIST"
