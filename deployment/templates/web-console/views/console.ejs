@@ -305,6 +305,147 @@
             }
         }
 
+        // Persistent Log Buffer Management
+        class PersistentLogBuffer {
+            constructor(maxLogs = 1000) {
+                this.maxLogs = maxLogs;
+                this.storageKey = 'minecraft_console_logs';
+                this.logs = this.loadFromStorage();
+            }
+            
+            // Load logs from localStorage
+            loadFromStorage() {
+                try {
+                    const stored = localStorage.getItem(this.storageKey);
+                    if (stored) {
+                        const parsed = JSON.parse(stored);
+                        // Validate the structure
+                        if (Array.isArray(parsed)) {
+                            return parsed.map(log => ({
+                                timestamp: log.timestamp || new Date().toISOString(),
+                                message: log.message || '',
+                                type: log.type || 'info',
+                                category: log.category || 'info',
+                                id: log.id || this.generateLogId()
+                            }));
+                        }
+                    }
+                } catch (e) {
+                    console.warn('Failed to load persistent logs:', e);
+                    // Clear corrupted data
+                    localStorage.removeItem(this.storageKey);
+                }
+                return [];
+            }
+            
+            // Save logs to localStorage
+            saveToStorage() {
+                try {
+                    // Only store essential data to save space
+                    const logsToStore = this.logs.map(log => ({
+                        timestamp: log.timestamp,
+                        message: log.message,
+                        type: log.type,
+                        category: log.category,
+                        id: log.id
+                    }));
+                    
+                    localStorage.setItem(this.storageKey, JSON.stringify(logsToStore));
+                } catch (e) {
+                    console.warn('Failed to save logs to storage:', e);
+                    
+                    // If storage is full, remove oldest logs and try again
+                    if (e.name === 'QuotaExceededError') {
+                        this.clearOldLogs(Math.floor(this.maxLogs / 2)); // Remove half
+                        try {
+                            localStorage.setItem(this.storageKey, JSON.stringify(this.logs));
+                        } catch (e2) {
+                            console.error('Still failed to save after cleanup:', e2);
+                        }
+                    }
+                }
+            }
+            
+            // Add new log to buffer
+            addLog(logData) {
+                const logEntry = {
+                    timestamp: logData.timestamp || new Date().toISOString(),
+                    message: logData.message,
+                    type: logData.type || 'info',
+                    category: logData.category || logFilter.classifyLogMessage(logData.message, logData.type),
+                    id: this.generateLogId()
+                };
+                
+                // Add to end of array
+                this.logs.push(logEntry);
+                
+                // Remove oldest if over limit
+                if (this.logs.length > this.maxLogs) {
+                    this.logs = this.logs.slice(-this.maxLogs);
+                }
+                
+                // Save to storage (debounced for performance)
+                this.debouncedSave();
+                
+                return logEntry;
+            }
+            
+            // Generate unique ID for each log
+            generateLogId() {
+                return Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+            }
+            
+            // Debounced save to avoid too many localStorage writes
+            debouncedSave = this.debounce(() => {
+                this.saveToStorage();
+            }, 1000);
+            
+            // Debounce utility function
+            debounce(func, wait) {
+                let timeout;
+                return function executedFunction(...args) {
+                    const later = () => {
+                        clearTimeout(timeout);
+                        func(...args);
+                    };
+                    clearTimeout(timeout);
+                    timeout = setTimeout(later, wait);
+                };
+            }
+            
+            // Get all logs
+            getAllLogs() {
+                return [...this.logs]; // Return copy to prevent mutation
+            }
+            
+            // Clear logs from storage
+            clearStoredLogs() {
+                this.logs = [];
+                localStorage.removeItem(this.storageKey);
+                addConsoleMessage('info', 'Persistent log buffer cleared');
+            }
+            
+            // Remove old logs (for memory management)
+            clearOldLogs(keepCount) {
+                if (keepCount < this.logs.length) {
+                    this.logs = this.logs.slice(-keepCount);
+                    this.saveToStorage();
+                }
+            }
+            
+            // Get storage usage info
+            getStorageInfo() {
+                const stored = localStorage.getItem(this.storageKey);
+                const sizeKB = stored ? Math.round(stored.length / 1024) : 0;
+                return {
+                    logCount: this.logs.length,
+                    maxLogs: this.maxLogs,
+                    storageKB: sizeKB,
+                    percentFull: Math.round((this.logs.length / this.maxLogs) * 100)
+                };
+            }
+        }
+
         // Initialize log filter
         const logFilter = new LogFilter();
         
@@ -593,11 +734,11 @@
                     console.log(`Command history: ${count}/50 commands stored`);
                 }
 
-// Show command history stats on page load
-document.addEventListener('DOMContentLoaded', function() {
-    updateCommandHistoryStats();
-    addConsoleMessage('info', `Command history loaded: ${commandHistory.getCommandCount()} previous commands available`);
-});
+                // Show command history stats on page load
+                document.addEventListener('DOMContentLoaded', function() {
+                    updateCommandHistoryStats();
+                    addConsoleMessage('info', `Command history loaded: ${commandHistory.getCommandCount()} previous commands available`);
+                });
             }
         }
 
@@ -750,8 +891,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 return false;
             }
         }
-
-
     </script>
 </body>
 </html>
