@@ -540,18 +540,7 @@ if [ "$ENABLE_WEB_CONSOLE" == "yes" ]; then
 fi
 echo ""
 
-# === 5. Confirmation & Action ===
-CONFIRMATION=$(prompt_yes_no "Proceed with this configuration? (y/n) [y]: " "y")
-if [ "$CONFIRMATION" == "no" ]; then
-    log "INFO" "Setup cancelled by user"
-    echo "Setup cancelled by user."
-    exit 1
-fi
-
-cd "$SERVER_DIR" || exit 1
-
-# === Modified Docker Compose Generation ===
-# This replaces the existing docker-compose.yml generation section
+# === 4.1 Docker Compose Generation ===
 
 generate_docker_compose() {
     log "INFO" "Generating docker-compose file in $SERVER_DIR"
@@ -805,7 +794,20 @@ EOF
     log "INFO" "docker-compose.yml created in: $SERVER_DIR"
 }
 
-# Verify file was created successfully
+# === 5. Confirmation & Docker compose file generation ===
+CONFIRMATION=$(prompt_yes_no "Proceed with this configuration? (y/n) [y]: " "y")
+if [ "$CONFIRMATION" == "no" ]; then
+    log "INFO" "Setup cancelled by user"
+    echo "Setup cancelled by user."
+    exit 1
+fi
+
+cd "$SERVER_DIR" || exit 1
+
+generate_docker_compose
+
+# === 5.1 Docker compose file verification ===
+
 if [ -f "$COMPOSE_FILE" ]; then
     echo "✓ docker-compose.yml created successfully!"
     log "INFO" "docker-compose.yml created in: $SERVER_DIR"
@@ -823,8 +825,7 @@ else
     echo "   docker compose up -d"
 fi
 
-# === 7. Launch & Final Configuration ===
-
+# === 6. Launch and deployment ===
 
 launch_services() {
     if [ "$LAUNCH_NOW" == "no" ]; then
@@ -918,8 +919,13 @@ launch_services() {
     log "INFO" "Server has initialized successfully."
 }
 
-generate_docker_compose
+# === 6.1 Launch Confirmation ===
+
+LAUNCH_NOW=$(prompt_yes_no "Would you like to start the server now? (y/n) [y]: " "y")
+
 launch_services
+
+# === 7. Geyser Configuration ===
 
 # Configure Geyser / copying floodgate key with improved timing
 if [ "$USE_GEYSER" == "yes" ]; then
@@ -958,6 +964,7 @@ if [ "$USE_GEYSER" == "yes" ]; then
 fi
 
 # === 8. Backup Configuration ===
+
 if [ "$ENABLE_BACKUPS" == "yes" ]; then
     echo ""
     echo "=== Configuring Backups ==="
@@ -1015,7 +1022,7 @@ fi
 
 
 
-# Generate Backup Script
+# === 8.1 Backup script generation ===
 
 if [ "$ENABLE_BACKUPS" == "yes" ]; then
     log "INFO" "Generating backup script"
@@ -1148,7 +1155,7 @@ EOF
 fi
 
 
-# === 8. Completion Message ===
+# === 9. Completion Message ===
 
 # Display the backup instruction if it was generated
 if [ -n "$BACKUP_INSTRUCTION" ]; then
