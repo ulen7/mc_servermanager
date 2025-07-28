@@ -9,7 +9,7 @@ set -euo pipefail
 
 # Minecraft Server Setup
 # Maintained at: https://github.com/ulen7/mc_servermanager/new/main/current
-# Version: 2.0.0
+# Version: 2.0.1
 
 # === 0. Constants & Defaults ===
 DEFAULT_SERVER_NAME="mc_server"
