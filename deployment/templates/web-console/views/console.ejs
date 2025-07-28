@@ -23,6 +23,8 @@
                     <button class="btn btn-clear" onclick="clearConsole()">🗑️ Clear</button>
                     <button class="btn btn-secondary" onclick="toggleAutoScroll()">📜 Auto-scroll: ON</button>
                     <button class="btn btn-secondary" onclick="reconnectLogs()">🔄 Reconnect Logs</button>
+                    <button class="btn btn-secondary" onclick="showLogBufferInfo()">📊 Buffer Info</button>
+                    <button class="btn btn-secondary" onclick="clearLogBuffer()">🗑️ Clear History</button>
                 </div>
                 <div class="user-info">
                     <span id="connectionStatus">🔌 Connecting...</span>
@@ -151,6 +153,50 @@
             // Request a new log stream from the server
             socket.emit('requestLogs', { tail: '50' });
         });
+
+        // Show log buffer information
+        function showLogBufferInfo() {
+            const info = persistentLogs.getStorageInfo();
+            const message = `Log Buffer Status:
+        📊 Logs: ${info.logCount}/${info.maxLogs} (${info.percentFull}% full)
+        💾 Storage: ${info.storageKB}KB
+        🔄 Auto-save: Enabled`;
+            
+            addConsoleMessage('info', message);
+        }
+        
+        // Clear log buffer
+        function clearLogBuffer() {
+            if (confirm('Clear all stored log history? This cannot be undone.')) {
+                // Clear persistent storage
+                persistentLogs.clearStoredLogs();
+                
+                // Clear current display
+                const consoleOutput = document.getElementById('consoleOutput');
+                consoleOutput.innerHTML = '';
+                
+                // Reset filter counts
+                logFilter.logCounts = {
+                    all: 0,
+                    error: 0,
+                    player: 0,
+                    server: 0,
+                    command: 0,
+                    info: 0
+                };
+                
+                // Update UI
+                Object.keys(logFilter.logCounts).forEach(cat => {
+                    const countElement = document.getElementById(`count-${cat}`);
+                    if (countElement) {
+                        countElement.textContent = '0';
+                    }
+                });
+                
+                updateLogCount();
+                addConsoleMessage('success', 'Log buffer cleared successfully');
+            }
+        }
 
         // Helper function to update connection status
         function updateConnectionStatus(status, type) {
@@ -446,15 +492,81 @@
             }
         }
 
+        // Create DOM element from log data
+        function createLogElement(logEntry) {
+            const consoleOutput = document.getElementById('consoleOutput');
+            const messageDiv = document.createElement('div');
+            
+            // Set CSS classes and data attributes
+            messageDiv.className = `console-line ${logEntry.category}`;
+            messageDiv.dataset.category = logEntry.category;
+            messageDiv.dataset.logId = logEntry.id;
+            
+            // Format timestamp
+            const timestamp = new Date(logEntry.timestamp).toLocaleTimeString();
+            
+            // Apply search highlighting if needed
+            const displayMessage = logFilter.highlightSearchTerm(escapeHtml(logEntry.message), logFilter.searchTerm);
+            
+            messageDiv.innerHTML = `<span class="timestamp">[${timestamp}]</span> ${displayMessage}`;
+            
+            // Add to console
+            consoleOutput.appendChild(messageDiv);
+            
+            // Apply current filters to new message
+            if (!logFilter.shouldShowLog(messageDiv)) {
+                messageDiv.classList.add('hidden');
+            }
+            
+            // Auto-scroll if enabled and log is visible
+            if (autoScroll && !messageDiv.classList.contains('hidden')) {
+                consoleOutput.scrollTop = consoleOutput.scrollHeight;
+            }
+            
+            return messageDiv;
+        }
+
+        // Restore persistent logs on page load
+        function restorePersistentLogs() {
+            const savedLogs = persistentLogs.getAllLogs();
+            
+            if (savedLogs.length > 0) {
+                addConsoleMessage('info', `Restoring ${savedLogs.length} previous log entries...`);
+                
+                // Restore each log entry
+                savedLogs.forEach(logEntry => {
+                    createLogElement(logEntry);
+                    logFilter.updateLogCount(logEntry.category);
+                });
+                
+                // Apply current filters
+                logFilter.applyFilters();
+                
+                // Update total count
+                updateLogCount();
+                
+                // Show restoration info
+                const storageInfo = persistentLogs.getStorageInfo();
+                addConsoleMessage('success', 
+                    `Log history restored! ${storageInfo.logCount}/${storageInfo.maxLogs} logs ` +
+                    `(${storageInfo.storageKB}KB, ${storageInfo.percentFull}% full)`
+                );
+            } else {
+                addConsoleMessage('info', 'No previous log history found');
+            }
+        }
+
         // Initialize log filter
         const logFilter = new LogFilter();
+
+        // Initialize persistent log buffer
+        const persistentLogs = new PersistentLogBuffer(1000);
         
         // Helper function to add log messages from Socket.IO
-          
-        // Updated helper function to add log messages from Socket.IO
         function addLogMessage(data) {
             // Filter out RCON noise messages (your existing code)
-            const message = data.message; 
+            const message = data.message;
+            
             const rconPatterns = [
                 /RCON LISTENER.*started/i,
                 /RCON Client.*started/i,
@@ -470,41 +582,22 @@
                 return;
             }
             
-            const consoleOutput = document.getElementById('consoleOutput');
-            const messageDiv = document.createElement('div');
-            
             // Classify the log message
             const category = logFilter.classifyLogMessage(message, data.type);
             
-            // Set CSS classes
-            messageDiv.className = `console-line ${category}`;
-            messageDiv.dataset.category = category;
+            // Store in persistent buffer
+            const logEntry = persistentLogs.addLog({
+                timestamp: data.timestamp,
+                message: message,
+                type: data.type,
+                category: category
+            });
             
-            // Format timestamp
-            const timestamp = new Date(data.timestamp).toLocaleTimeString();
-            
-            // Apply search highlighting if needed
-            const displayMessage = logFilter.highlightSearchTerm(escapeHtml(message), logFilter.searchTerm);
-            
-            messageDiv.innerHTML = `<span class="timestamp">[${timestamp}]</span> ${displayMessage}`;
-            
-            // Add to console
-            consoleOutput.appendChild(messageDiv);
+            // Create DOM element
+            createLogElement(logEntry);
             
             // Update counts
             logFilter.updateLogCount(category);
-            
-            // Apply current filters to new message
-            if (!logFilter.shouldShowLog(messageDiv)) {
-                messageDiv.classList.add('hidden');
-            }
-            
-            // Auto-scroll if enabled and log is visible
-            if (autoScroll && !messageDiv.classList.contains('hidden')) {
-                consoleOutput.scrollTop = consoleOutput.scrollHeight;
-            }
-            
-            // Update log count in your existing counter
             updateLogCount();
         }
 
@@ -758,8 +851,16 @@
 
         // Initialize when page loads
         document.addEventListener('DOMContentLoaded', function() {
+            // Restore persistent logs first
+            restorePersistentLogs();
+            
+            // Then show startup messages
             addConsoleMessage('info', 'Console interface loaded');
-            addConsoleMessage('info', 'Connecting to real-time log stream...');
+            addConsoleMessage('info', `Command history loaded: ${commandHistory.getCommandCount()} previous commands available`);
+            
+            // Show buffer info
+            const storageInfo = persistentLogs.getStorageInfo();
+            addConsoleMessage('info', `Persistent log buffer: ${storageInfo.maxLogs} log capacity`);
         });
 
         <!-- NEW COMMANDS FUNCTIONS -->
