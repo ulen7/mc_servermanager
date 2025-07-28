@@ -246,9 +246,18 @@ app.get('/console', requireAuth, (req, res) => {
     });
 });
 
+// Dashboard route
+app.get('/dashboard', requireAuth, (req, res) => {
+    res.render('dashboard', {
+        title: 'Server Dashboard',
+        containerName: MC_CONTAINER,
+        username: req.session.username
+    });
+});
+
 app.get('/', (req, res) => {
     if (req.session && req.session.authenticated) {
-        res.redirect('/console');
+        res.redirect('/dashboard'); // Changed from /console
     } else {
         res.redirect('/login');
     }
@@ -340,6 +349,182 @@ app.post('/api/command', requireAuth, (req, res) => {
         });
     });
 });
+
+// Dashboard Stats API - Add this after your existing /api routes
+app.get('/api/dashboard/stats', requireAuth, async (req, res) => {
+    try {
+        const { exec } = require('child_process');
+        const { promisify } = require('util');
+        const execAsync = promisify(exec);
+        
+        const stats = {
+            timestamp: new Date().toISOString(),
+            server: {},
+            performance: {},
+            players: {}
+        };
+        
+        // Get Docker container status and basic info
+        try {
+            const { stdout: statusOutput } = await execAsync(`docker inspect ${MC_CONTAINER} --format "{{.State.Status}},{{.State.StartedAt}},{{.Config.Image}}"`);
+            const [status, startedAt, image] = statusOutput.trim().split(',');
+            
+            stats.server.status = status;
+            stats.server.image = image;
+            
+            // Calculate uptime
+            if (status === 'running' && startedAt) {
+                const startTime = new Date(startedAt);
+                const uptime = Date.now() - startTime.getTime();
+                stats.server.uptime = formatUptime(uptime);
+                stats.server.uptimeMs = uptime;
+            } else {
+                stats.server.uptime = 'Not running';
+                stats.server.uptimeMs = 0;
+            }
+        } catch (error) {
+            console.log('Container status error:', error.message);
+            stats.server.status = 'unknown';
+            stats.server.uptime = 'Unknown';
+            stats.server.uptimeMs = 0;
+        }
+        
+        // Get Docker container resource stats
+        try {
+            const { stdout: dockerStats } = await execAsync(`docker stats ${MC_CONTAINER} --no-stream --format "table {{.MemUsage}}\\t{{.CPUPerc}}\\t{{.MemPerc}}"`);
+            const lines = dockerStats.trim().split('\n');
+            if (lines.length > 1) {
+                const statsLine = lines[1].trim();
+                const [memUsage, cpuPerc, memPerc] = statsLine.split(/\s+/);
+                
+                stats.performance.memoryUsage = memUsage;
+                stats.performance.cpuUsage = cpuPerc;
+                stats.performance.memoryPercent = memPerc;
+                
+                // Parse memory numbers for more detailed info
+                const memMatch = memUsage.match(/^([\d.]+\w+)\s*\/\s*([\d.]+\w+)$/);
+                if (memMatch) {
+                    stats.performance.memoryUsed = memMatch[1];
+                    stats.performance.memoryTotal = memMatch[2];
+                }
+            }
+        } catch (error) {
+            console.log('Docker stats error:', error.message);
+            stats.performance.memoryUsage = 'N/A';
+            stats.performance.cpuUsage = 'N/A';
+            stats.performance.memoryPercent = 'N/A';
+        }
+        
+        // Get player information using rcon (only if server is running)
+        if (stats.server.status === 'running') {
+            try {
+                const { stdout: playerOutput } = await execAsync(`docker exec ${MC_CONTAINER} rcon-cli list`);
+                const playerInfo = parsePlayerInfo(playerOutput);
+                stats.players = playerInfo;
+            } catch (error) {
+                console.log('Player info error:', error.message);
+                stats.players = { count: 0, names: [], max: 20, online: [] };
+            }
+        } else {
+            stats.players = { count: 0, names: [], max: 20, online: [] };
+        }
+        
+        // Add server configuration info
+        stats.server.version = process.env.MC_VERSION || 'Unknown';
+        stats.server.type = process.env.SERVER_TYPE || 'Unknown';
+        stats.server.container = MC_CONTAINER;
+        
+        res.json({ success: true, stats });
+        
+    } catch (error) {
+        console.error('Dashboard stats error:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Failed to retrieve dashboard stats',
+            stats: getDefaultStats()
+        });
+    }
+});
+
+// Helper function to format uptime
+function formatUptime(milliseconds) {
+    const seconds = Math.floor(milliseconds / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
+    
+    if (days > 0) {
+        return `${days}d ${hours % 24}h ${minutes % 60}m`;
+    } else if (hours > 0) {
+        return `${hours}h ${minutes % 60}m`;
+    } else if (minutes > 0) {
+        return `${minutes}m ${seconds % 60}s`;
+    } else {
+        return `${seconds}s`;
+    }
+}
+
+// Enhanced player info parser
+function parsePlayerInfo(rconOutput) {
+    try {
+        const lines = rconOutput.trim().split('\n');
+        const mainLine = lines[0] || '';
+        
+        // Parse: "There are 2 of a max of 20 players online: player1, player2"
+        const countMatch = mainLine.match(/There are (\d+) of a max of (\d+) players online/);
+        if (countMatch) {
+            const count = parseInt(countMatch[1]);
+            const max = parseInt(countMatch[2]);
+            
+            // Extract player names
+            const namesMatch = mainLine.match(/online: (.+)$/);
+            const names = namesMatch ? 
+                namesMatch[1].split(', ').map(name => name.trim()).filter(name => name.length > 0) : 
+                [];
+            
+            // Create detailed player objects
+            const online = names.map(name => ({
+                name: name,
+                joinTime: 'Unknown', // Could be enhanced with log parsing
+                status: 'online'
+            }));
+            
+            return { count, max, names, online };
+        }
+        
+        return { count: 0, max: 20, names: [], online: [] };
+        
+    } catch (error) {
+        console.log('Player parsing error:', error.message);
+        return { count: 0, max: 20, names: [], online: [] };
+    }
+}
+
+// Default stats for error cases
+function getDefaultStats() {
+    return {
+        timestamp: new Date().toISOString(),
+        server: {
+            status: 'unknown',
+            uptime: 'Unknown',
+            uptimeMs: 0,
+            version: 'Unknown',
+            type: 'Unknown',
+            container: MC_CONTAINER
+        },
+        performance: {
+            memoryUsage: 'N/A',
+            cpuUsage: 'N/A',
+            memoryPercent: 'N/A'
+        },
+        players: {
+            count: 0,
+            max: 20,
+            names: [],
+            online: []
+        }
+    };
+}
 
 // --- Server Startup ---
 server.listen(PORT, () => {
