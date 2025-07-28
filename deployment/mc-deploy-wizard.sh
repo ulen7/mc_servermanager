@@ -9,7 +9,7 @@ set -euo pipefail
 
 # Minecraft Server Setup
 # Maintained at: https://github.com/ulen7/mc_servermanager/new/main/current
-# Version: 2.0.0
+# Version: 2.0.1
 
 # === 0. Constants & Defaults ===
 DEFAULT_SERVER_NAME="mc_server"
@@ -540,18 +540,7 @@ if [ "$ENABLE_WEB_CONSOLE" == "yes" ]; then
 fi
 echo ""
 
-# === 5. Confirmation & Action ===
-CONFIRMATION=$(prompt_yes_no "Proceed with this configuration? (y/n) [y]: " "y")
-if [ "$CONFIRMATION" == "no" ]; then
-    log "INFO" "Setup cancelled by user"
-    echo "Setup cancelled by user."
-    exit 1
-fi
-
-cd "$SERVER_DIR" || exit 1
-
-# === Modified Docker Compose Generation ===
-# This replaces the existing docker-compose.yml generation section
+# === 4.1 Docker Compose Generation ===
 
 generate_docker_compose() {
     log "INFO" "Generating docker-compose file in $SERVER_DIR"
@@ -563,7 +552,7 @@ generate_docker_compose() {
     
     # Check if the server type is Fabric to add mods
     if [ "$SERVER_TYPE" == "fabric" ]; then
-        MODS_LIST="fabric-api,viaversion,viafabric"
+        MODS_LIST="fabric-api, viaversion,viafabric"
         if [ "$USE_GEYSER" == "yes" ]; then
             MODS_LIST="${MODS_LIST},floodgate,skinrestorer"
             log "INFO" "Mods added: $MODS_LIST"
@@ -805,18 +794,42 @@ EOF
     log "INFO" "docker-compose.yml created in: $SERVER_DIR"
 }
 
-# === 7. Launch & Final Configuration ===
+# === 5. Confirmation & Docker compose file generation ===
+CONFIRMATION=$(prompt_yes_no "Proceed with this configuration? (y/n) [y]: " "y")
+if [ "$CONFIRMATION" == "no" ]; then
+    log "INFO" "Setup cancelled by user"
+    echo "Setup cancelled by user."
+    exit 1
+fi
+
+cd "$SERVER_DIR" || exit 1
+
+generate_docker_compose
+
+# === 5.1 Docker compose file verification ===
+
+if [ -f "$COMPOSE_FILE" ]; then
+    echo "✓ docker-compose.yml created successfully!"
+    log "INFO" "docker-compose.yml created in: $SERVER_DIR"
+else
+    log "ERROR" "Failed to create docker-compose.yml"
+    exit 1
+fi
+
+echo ""
+echo "To start your server, run these commands:"
+echo "   cd $SERVER_DIR"
+if [ "$ENABLE_TAILSCALE" == "yes" ]; then
+    echo "   docker compose --env-file .env up -d"
+else
+    echo "   docker compose up -d"
+fi
+
+# === 6. Launch and deployment ===
 
 launch_services() {
     if [ "$LAUNCH_NOW" == "no" ]; then
-        echo ""
-        echo "All set! You can start your server later using these commands:"
-        echo "   cd $SERVER_DIR"
-        if [ "$ENABLE_TAILSCALE" == "yes" ] || [ "$ENABLE_WEB_CONSOLE" == "yes" ]; then
-            echo "   docker compose --env-file .env up -d --build"
-        else
-            echo "   docker compose up -d --build"
-        fi
+        echo "All set! You can start your server later using the commands provided."
         log "INFO" "Services will be launched manually"
         return 0
     fi
@@ -906,12 +919,13 @@ launch_services() {
     log "INFO" "Server has initialized successfully."
 }
 
-# Add this prompt for launching
+# === 6.1 Launch Confirmation ===
+
 LAUNCH_NOW=$(prompt_yes_no "Would you like to start the server now? (y/n) [y]: " "y")
 
-# === 6. Generate and Launch ===
-generate_docker_compose
 launch_services
+
+# === 7. Geyser Configuration ===
 
 # Configure Geyser / copying floodgate key with improved timing
 if [ "$USE_GEYSER" == "yes" ]; then
@@ -950,6 +964,7 @@ if [ "$USE_GEYSER" == "yes" ]; then
 fi
 
 # === 8. Backup Configuration ===
+
 if [ "$ENABLE_BACKUPS" == "yes" ]; then
     echo ""
     echo "=== Configuring Backups ==="
@@ -1007,7 +1022,7 @@ fi
 
 
 
-# Generate Backup Script
+# === 8.1 Backup script generation ===
 
 if [ "$ENABLE_BACKUPS" == "yes" ]; then
     log "INFO" "Generating backup script"
@@ -1140,7 +1155,7 @@ EOF
 fi
 
 
-# === 8. Completion Message ===
+# === 9. Completion Message ===
 
 # Display the backup instruction if it was generated
 if [ -n "$BACKUP_INSTRUCTION" ]; then
