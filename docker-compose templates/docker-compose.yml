@@ -6,17 +6,16 @@ services:
     tty: true
     stdin_open: true
     ports:
-      - "25580:25580"
-      - "19150:19150/udp"
+      - "25565:25565"
+      - "19132:19132/udp"
     environment:
       EULA: "TRUE"
       VERSION: "1.21.6"
       TYPE: "FABRIC"
-      MEMORY: "4G"
-      SERVER_PORT: "25580"
+      MEMORY: "2G"
+      SERVER_PORT: "25565"
       MAX_PLAYERS: "4"
       MODE: "creative"
-      PVP: "false"
       RESOURCE_PACK_ENFORCE: "TRUE"
       SEED: "46182117"
       MODRINTH_PROJECTS: "fabric-api"
