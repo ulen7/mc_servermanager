@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/css/style.css">
+    <title>Dashboard - Web Console</title>
+</head>
+<body>
+    <div class="container">
+        <!-- Navigation header -->
+        <div class="nav-header">
+            <div class="nav-tabs">
+                <a href="/dashboard" class="nav-tab active">📊 Dashboard</a>
+                <a href="/console" class="nav-tab">🖥️ Console</a>
+            </div>
+        </div>
+
+        <!-- Header -->
+        <div class="header">
+            <h1>📊 Server Dashboard</h1>
+            <p>Real-time Server Monitoring & Management</p>
+            <div class="server-status" id="serverStatusIndicator">● Loading...</div>
+        </div>
+        
+        <!-- Dashboard content -->
+        <div class="dashboard-container">
+            <!-- Quick Actions -->
+            <div class="quick-actions">
+                <div class="action-group">
+                    <button class="btn btn-start" onclick="startServer()">▶️ Start</button>
+                    <button class="btn btn-stop" onclick="stopServer()">⏹️ Stop</button>
+                    <button class="btn btn-restart" onclick="restartServer()">🔄 Restart</button>
+                    <button class="btn btn-secondary" onclick="refreshDashboard()">🔄 Refresh</button>
+                </div>
+                <div class="user-info">
+                    <span id="lastUpdate">Last updated: --:--</span>
+                    <span>👤 <%= username || 'Admin' %></span>
+                    <a href="/logout" class="logout-btn">Logout</a>
+                </div>
+            </div>
+
+            <!-- Main Stats Grid -->
+            <div class="stats-grid">
+                <!-- Server Status Card -->
+                <div class="stat-card primary">
+                    <div class="stat-icon">🖥️</div>
+                    <div class="stat-content">
+                        <div class="stat-label">Server Status</div>
+                        <div class="stat-value" id="serverStatus">Loading...</div>
+                        <div class="stat-subtitle" id="serverUptime">Uptime: --</div>
+                    </div>
+                </div>
+
+                <!-- Players Card -->
+                <div class="stat-card success">
+                    <div class="stat-icon">👥</div>
+                    <div class="stat-content">
+                        <div class="stat-label">Players Online</div>
+                        <div class="stat-value" id="playerCount">-/-</div>
+                        <div class="stat-subtitle" id="playerSubtitle">No players online</div>
+                    </div>
+                </div>
+
+                <!-- Memory Card -->
+                <div class="stat-card warning">
+                    <div class="stat-icon">💾</div>
+                    <div class="stat-content">
+                        <div class="stat-label">Memory Usage</div>
+                        <div class="stat-value" id="memoryUsage">Loading...</div>
+                        <div class="stat-subtitle">RAM Usage</div>
+                    </div>
+                </div>
+
+                <!-- Performance Card -->
+                <div class="stat-card info">
+                    <div class="stat-icon">⚡</div>
+                    <div class="stat-content">
+                        <div class="stat-label">CPU Usage</div>
+                        <div class="stat-value" id="cpuUsage">Loading...</div>
+                        <div class="stat-subtitle">Processor Load</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Detailed Information -->
+            <div class="info-sections">
+                <!-- Server Information -->
+                <div class="info-section">
+                    <h3>📦 Server Information</h3>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <div class="info-label">Server Type</div>
+                            <div class="info-value" id="serverType">Loading...</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Version</div>
+                            <div class="info-value" id="serverVersion">Loading...</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Container</div>
+                            <div class="info-value"><%= containerName %></div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Connection</div>
+                            <div class="info-value" id="connectionStatus">Connecting...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Player Management -->
+                <div class="info-section" id="playerSection">
+                    <h3>👥 Player Management</h3>
+                    <div id="playerList" class="player-list">
+                        <div class="no-players">No players currently online</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Include Socket.IO for real-time updates -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
+    <script>
+    // Dashboard Management System
+    class DashboardManager {
+        constructor() {
+            this.socket = io();
+            this.updateInterval = null;
+            this.isUpdating = false;
+            this.updateFrequency = 30000; // 30 seconds
+            this.init();
+        }
+        
+        init() {
+            // Setup socket connection
+            this.setupSocketHandlers();
+            
+            // Initial data load
+            this.updateDashboard();
+            
+            // Start auto-refresh
+            this.startAutoRefresh();
+            
+            console.log('Dashboard initialized');
+        }
+        
+        setupSocketHandlers() {
+            this.socket.on('connect', () => {
+                console.log('Connected to server');
+                this.updateConnectionStatus('Connected', 'success');
+            });
+
+            this.socket.on('disconnect', () => {
+                console.log('Disconnected from server');
+                this.updateConnectionStatus('Disconnected', 'error');
+            });
+
+            this.socket.on('connect_error', (error) => {
+                console.error('Connection error:', error);
+                this.updateConnectionStatus('Connection Error', 'error');
+            });
+            
+            // Listen for server status changes
+            this.socket.on('serverStatus', (data) => {
+                this.handleServerStatusChange(data);
+            });
+        }
+        
+        async updateDashboard() {
+            if (this.isUpdating) return;
+            
+            this.isUpdating = true;
+            this.setLoadingState(true);
+            
+            try {
+                const response = await fetch('/api/dashboard/stats');
+                const data = await response.json();
+                
+                if (data.success) {
+                    this.displayStats(data.stats);
+                    this.updateLastUpdateTime();
+                } else {
+                    console.warn('Dashboard update warning:', data.error);
+                    this.displayStats(data.stats); // Show fallback data
+                }
+                
+            } catch (error) {
+                console.error('Failed to update dashboard:', error);
+                this.showError('Failed to load server stats');
+            } finally {
+                this.isUpdating = false;
+                this.setLoadingState(false);
+            }
+        }
+        
+        displayStats(stats) {
+            // Update server status
+            this.updateServerStatus(stats.server);
+            
+            // Update performance stats
+            this.updatePerformanceStats(stats.performance);
+            
+            // Update player information
+            this.updatePlayerStats(stats.players);
+            
+            // Update server info
+            this.updateServerInfo(stats.server);
+        }
+        
+        updateServerStatus(server) {
+            const statusElement = document.getElementById('serverStatus');
+            const uptimeElement = document.getElementById('serverUptime');
+            const statusIndicator = document.getElementById('serverStatusIndicator');
+            
+            if (statusElement) {
+                const statusText = this.formatServerStatus(server.status);
+                statusElement.textContent = statusText;
+                statusElement.className = `stat-value ${this.getStatusClass(server.status)}`;
+            }
+            
+            if (uptimeElement) {
+                uptimeElement.textContent = `Uptime: ${server.uptime}`;
+            }
+            
+            if (statusIndicator) {
+                const indicator = this.getStatusIndicator(server.status);
+                statusIndicator.textContent = indicator.text;
+                statusIndicator.className = `server-status ${indicator.class}`;
+            }
+        }
+        
+        updatePerformanceStats(performance) {
+            // Memory usage
+            const memoryElement = document.getElementById('memoryUsage');
+            if (memoryElement) {
+                memoryElement.textContent = performance.memoryUsage || 'N/A';
+            }
+            
+            // CPU usage  
+            const cpuElement = document.getElementById('cpuUsage');
+            if (cpuElement) {
+                cpuElement.textContent = performance.cpuUsage || 'N/A';
+            }
+        }
+        
+        updatePlayerStats(players) {
+            // Player count
+            const playerCountElement = document.getElementById('playerCount');
+            const playerSubtitleElement = document.getElementById('playerSubtitle');
+            
+            if (playerCountElement) {
+                playerCountElement.textContent = `${players.count}/${players.max}`;
+            }
+            
+            if (playerSubtitleElement) {
+                if (players.count > 0) {
+                    playerSubtitleElement.textContent = `${players.count} player${players.count !== 1 ? 's' : ''} online`;
+                } else {
+                    playerSubtitleElement.textContent = 'No players online';
+                }
+            }
+            
+            // Player list
+            this.updatePlayerList(players);
+        }
+        
+        updatePlayerList(players) {
+            const playerListElement = document.getElementById('playerList');
+            
+            if (players.count > 0 && players.online.length > 0) {
+                const playerItems = players.online.map(player => `
+                    <div class="player-item">
+                        <div class="player-name">🟢 ${this.escapeHtml(player.name)}</div>
+                        <div class="player-time">${player.joinTime}</div>
+                    </div>
+                `).join('');
+                
+                playerListElement.innerHTML = playerItems;
+            } else {
+                playerListElement.innerHTML = '<div class="no-players">No players currently online</div>';
+            }
+        }
+        
+        updateServerInfo(server) {
+            const serverTypeElement = document.getElementById('serverType');
+            const serverVersionElement = document.getElementById('serverVersion');
+            
+            if (serverTypeElement) {
+                serverTypeElement.textContent = server.type || 'Unknown';
+            }
+            
+            if (serverVersionElement) {
+                serverVersionElement.textContent = server.version || 'Unknown';
+            }
+        }
+        
+        updateConnectionStatus(status, type) {
+            const connectionElement = document.getElementById('connectionStatus');
+            if (connectionElement) {
+                const icons = {
+                    'success': '🟢',
+                    'error': '🔴',
+                    'warning': '🟡'
+                };
+                
+                connectionElement.textContent = `${icons[type] || '🔌'} ${status}`;
+                connectionElement.className = `info-value status-${type}`;
+            }
+        }
+        
+        formatServerStatus(status) {
+            const statusMap = {
+                'running': '🟢 Running',
+                'stopped': '🔴 Stopped',
+                'paused': '🟡 Paused',
+                'restarting': '🟡 Restarting',
+                'unknown': '⚪ Unknown'
+            };
+            
+            return statusMap[status] || `⚪ ${status}`;
+        }
+        
+        getStatusClass(status) {
+            const classMap = {
+                'running': 'status-online',
+                'stopped': 'status-offline',
+                'paused': 'status-loading',
+                'restarting': 'status-loading',
+                'unknown': 'status-loading'
+            };
+            
+            return classMap[status] || 'status-loading';
+        }
+        
+        getStatusIndicator(status) {
+            const indicators = {
+                'running': { text: '● Server Online', class: 'status-online' },
+                'stopped': { text: '● Server Offline', class: 'status-offline' },
+                'paused': { text: '● Server Paused', class: 'status-loading' },
+                'restarting': { text: '● Server Restarting', class: 'status-loading' },
+                'unknown': { text: '● Status Unknown', class: 'status-loading' }
+            };
+            
+            return indicators[status] || { text: '● Status Unknown', class: 'status-loading' };
+        }
+        
+        updateLastUpdateTime() {
+            const lastUpdateElement = document.getElementById('lastUpdate');
+            if (lastUpdateElement) {
+                const now = new Date();
+                lastUpdateElement.textContent = `Last updated: ${now.toLocaleTimeString()}`;
+            }
+        }
+        
+        setLoadingState(loading) {
+            const cards = document.querySelectorAll('.stat-card');
+            cards.forEach(card => {
+                if (loading) {
+                    card.style.opacity = '0.7';
+                } else {
+                    card.style.opacity = '1';
+                }
+            });
+        }
+        
+        showError(message) {
+            // Could enhance this with a toast notification
+            console.error(message);
+        }
+        
+        handleServerStatusChange(data) {
+            // Refresh dashboard when server status changes
+            console.log('Server status changed:', data);
+            setTimeout(() => this.updateDashboard(), 1000);
+        }
+        
+        startAutoRefresh() {
+            this.updateInterval = setInterval(() => {
+                this.updateDashboard();
+            }, this.updateFrequency);
+        }
+        
+        stopAutoRefresh() {
+            if (this.updateInterval) {
+                clearInterval(this.updateInterval);
+                this.updateInterval = null;
+            }
+        }
+        
+        escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    }
+
+    // Server control functions (using existing API endpoints)
+    async function startServer() {
+        try {
+            const response = await fetch('/api/control/start', { method: 'POST' });
+            const data = await response.json();
+            if (data.success) {
+                showNotification('Server start command sent', 'success');
+            } else {
+                showNotification('Failed to start server: ' + data.error, 'error');
+            }
+        } catch (error) {
+            showNotification('Failed to start server: ' + error.message, 'error');
+        }
+    }
+
+    async function stopServer() {
+        if (confirm('Are you sure you want to stop the server?')) {
+            try {
+                const response = await fetch('/api/control/stop', { method: 'POST' });
+                const data = await response.json();
+                if (data.success) {
+                    showNotification('Server stop command sent', 'success');
+                } else {
+                    showNotification('Failed to stop server: ' + data.error, 'error');
+                }
+            } catch (error) {
+                showNotification('Failed to stop server: ' + error.message, 'error');
+            }
+        }
+    }
+
+    async function restartServer() {
+        if (confirm('Are you sure you want to restart the server?')) {
+            try {
+                const response = await fetch('/api/control/restart', { method: 'POST' });
+                const data = await response.json();
+                if (data.success) {
+                    showNotification('Server restart command sent', 'success');
+                } else {
+                    showNotification('Failed to restart server: ' + data.error, 'error');
+                }
+            } catch (error) {
+                showNotification('Failed to restart server: ' + error.message, 'error');
+            }
+        }
+    }
+
+    function refreshDashboard() {
+        dashboard.updateDashboard();
+        showNotification('Dashboard refreshed', 'info');
+    }
+
+    // Simple notification system
+    function showNotification(message, type = 'info') {
+        // Create notification element
+        const notification = document.createElement('div');
+        notification.className = `notification notification-${type}`;
+        notification.textContent = message;
+        
+        // Style notification
+        Object.assign(notification.style, {
+            position: 'fixed',
+            top: '20px',
+            right: '20px',
+            background: type === 'success' ? '#2ecc71' : type === 'error' ? '#e74c3c' : '#3498db',
+            color: 'white',
+            padding: '12px 20px',
+            borderRadius: '8px',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+            zIndex: '1000',
+            opacity: '0',
+            transform: 'translateY(-20px)',
+            transition: 'all 0.3s ease'
+        });
+        
+        document.body.appendChild(notification);
+        
+        // Animate in
+        setTimeout(() => {
+            notification.style.opacity = '1';
+            notification.style.transform = 'translateY(0)';
+        }, 100);
+        
+        // Remove after 3 seconds
+        setTimeout(() => {
+            notification.style.opacity = '0';
+            notification.style.transform = 'translateY(-20px)';
+            setTimeout(() => notification.remove(), 300);
+        }, 3000);
+    }
+
+    // Initialize dashboard
+    const dashboard = new DashboardManager();
+
+    console.log('Dashboard script loaded for container: <%= containerName %>');
+    </script>
+</body>
+</html>

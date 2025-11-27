@@ -8,12 +8,17 @@
 </head>
 <body>
     <div class="container">
+        <div class="nav-header">
+            <div class="nav-tabs">
+                <a href="/dashboard" class="nav-tab">📊 Dashboard</a>
+                <a href="/console" class="nav-tab active">🖥️ Console</a>
+            </div>
+        </div>
         <div class="header">
             <h1>🎮 Web Server Manager</h1>
             <p>Server Administration Console</p>
             <div class="server-status" id="serverStatusIndicator">● Server Online</div>
         </div>
-        
         <div id="consoleSection" class="console-container" style="display: block;">
             <div class="console-controls">
                 <div class="btn-group">
@@ -23,6 +28,8 @@
                     <button class="btn btn-clear" onclick="clearConsole()">🗑️ Clear</button>
                     <button class="btn btn-secondary" onclick="toggleAutoScroll()">📜 Auto-scroll: ON</button>
                     <button class="btn btn-secondary" onclick="reconnectLogs()">🔄 Reconnect Logs</button>
+                    <button class="btn btn-secondary" onclick="showLogBufferInfo()">📊 Buffer Info</button>
+                    <button class="btn btn-secondary" onclick="clearLogBuffer()">🗑️ Clear History</button>
                 </div>
                 <div class="user-info">
                     <span id="connectionStatus">🔌 Connecting...</span>
@@ -51,13 +58,43 @@
                     </div>
                 </div>
             </div>
-            
+            <div class="console-filters">
+                <div class="filter-buttons">
+                    <button class="filter-btn active" data-filter="all" onclick="setLogFilter('all')">
+                        📋 All <span class="filter-count" id="count-all">0</span>
+                    </button>
+                    <button class="filter-btn" data-filter="error" onclick="setLogFilter('error')">
+                        ❌ Errors <span class="filter-count" id="count-error">0</span>
+                    </button>
+                    <button class="filter-btn" data-filter="player" onclick="setLogFilter('player')">
+                        👤 Players <span class="filter-count" id="count-player">0</span>
+                    </button>
+                    <button class="filter-btn" data-filter="server" onclick="setLogFilter('server')">
+                        🖥️ Server <span class="filter-count" id="count-server">0</span>
+                    </button>
+                    <button class="filter-btn" data-filter="command" onclick="setLogFilter('command')">
+                        ⚡ Commands <span class="filter-count" id="count-command">0</span>
+                    </button>
+                </div>
+                
+                <div class="filter-search">
+                    <input type="text" 
+                        id="logSearchInput" 
+                        placeholder="🔍 Search logs..." 
+                        oninput="filterLogsBySearch()"
+                        onkeydown="handleSearchKeyboard(event)">
+                    <button onclick="clearSearch()" id="clearSearchBtn" style="display: none;">✕</button>
+                </div>
+            </div>
             <div class="console-output" id="consoleOutput">
                 <div class="console-line info">[System] Initializing console interface...</div>
             </div>
-            
             <div class="command-input">
-                <input type="text" id="commandInput" placeholder="Enter Minecraft command..." onkeypress="handleCommandInput(event)">
+                <input type="text" 
+                       id="commandInput" 
+                       placeholder="Enter Minecraft command... (↑/↓ for history)" 
+                       onkeypress="handleCommandInput(event)"
+                       onkeydown="handleHistoryNavigation(event)">
                 <button onclick="sendCommand()" id="sendBtn">Send</button>
             </div>
         </div>
@@ -122,6 +159,50 @@
             socket.emit('requestLogs', { tail: '50' });
         });
 
+        // Show log buffer information
+        function showLogBufferInfo() {
+            const info = persistentLogs.getStorageInfo();
+            const message = `Log Buffer Status:
+        📊 Logs: ${info.logCount}/${info.maxLogs} (${info.percentFull}% full)
+        💾 Storage: ${info.storageKB}KB
+        🔄 Auto-save: Enabled`;
+            
+            addConsoleMessage('info', message);
+        }
+        
+        // Clear log buffer
+        function clearLogBuffer() {
+            if (confirm('Clear all stored log history? This cannot be undone.')) {
+                // Clear persistent storage
+                persistentLogs.clearStoredLogs();
+                
+                // Clear current display
+                const consoleOutput = document.getElementById('consoleOutput');
+                consoleOutput.innerHTML = '';
+                
+                // Reset filter counts
+                logFilter.logCounts = {
+                    all: 0,
+                    error: 0,
+                    player: 0,
+                    server: 0,
+                    command: 0,
+                    info: 0
+                };
+                
+                // Update UI
+                Object.keys(logFilter.logCounts).forEach(cat => {
+                    const countElement = document.getElementById(`count-${cat}`);
+                    if (countElement) {
+                        countElement.textContent = '0';
+                    }
+                });
+                
+                updateLogCount();
+                addConsoleMessage('success', 'Log buffer cleared successfully');
+            }
+        }
+
         // Helper function to update connection status
         function updateConnectionStatus(status, type) {
             const connectionStatus = document.getElementById('connectionStatus');
@@ -137,30 +218,458 @@
             socketStatus.textContent = status;
         }
 
-        // Helper function to add log messages from Socket.IO
-        function addLogMessage(data) {
+        // Log Filter Management
+        class LogFilter {
+            constructor() {
+                this.activeFilter = 'all';
+                this.searchTerm = '';
+                this.logCounts = {
+                    all: 0,
+                    error: 0,
+                    player: 0,
+                    server: 0,
+                    command: 0,
+                    info: 0
+                };
+            }
+            
+            // Classify log message into category
+            classifyLogMessage(message, type) {
+                const msg = message.toLowerCase();
+                
+                // Command messages (highest priority)
+                if (type === 'command' || msg.startsWith('>')) {
+                    return 'command';
+                }
+                
+                // Error messages
+                if (type === 'error' || 
+                    msg.includes('error') || 
+                    msg.includes('exception') || 
+                    msg.includes('failed') || 
+                    msg.includes('crash')) {
+                    return 'error';
+                }
+                
+                // Player activity
+                if (msg.includes('joined the game') ||
+                    msg.includes('left the game') ||
+                    msg.includes('logged in') ||
+                    msg.includes('logged out') ||
+                    msg.includes('<') ||  // Chat messages
+                    msg.includes('whispers to you') ||
+                    msg.includes('achievement') ||
+                    msg.includes('advancement')) {
+                    return 'player';
+                }
+                
+                // Server events
+                if (msg.includes('starting minecraft server') ||
+                    msg.includes('done!') ||
+                    msg.includes('stopping') ||
+                    msg.includes('saved the game') ||
+                    msg.includes('saving') ||
+                    msg.includes('loaded') ||
+                    msg.includes('generating') ||
+                    msg.includes('preparing spawn') ||
+                    msg.includes('time elapsed')) {
+                    return 'server';
+                }
+                
+                // Default to info
+                return 'info';
+            }
+            
+            // Update log counts
+            updateLogCount(category) {
+                this.logCounts[category]++;
+                this.logCounts.all++;
+                
+                // Update UI counters
+                Object.keys(this.logCounts).forEach(cat => {
+                    const countElement = document.getElementById(`count-${cat}`);
+                    if (countElement) {
+                        countElement.textContent = this.logCounts[cat];
+                    }
+                });
+            }
+            
+            // Check if log should be visible with current filters
+            shouldShowLog(logElement) {
+                const category = logElement.dataset.category;
+                const message = logElement.textContent.toLowerCase();
+                
+                // Check category filter
+                const categoryMatch = this.activeFilter === 'all' || category === this.activeFilter;
+                
+                // Check search filter
+                const searchMatch = !this.searchTerm || message.includes(this.searchTerm.toLowerCase());
+                
+                return categoryMatch && searchMatch;
+            }
+            
+            // Apply current filters to all logs
+            applyFilters() {
+                const allLogs = document.querySelectorAll('.console-line');
+                let visibleCount = 0;
+                
+                allLogs.forEach(logElement => {
+                    if (this.shouldShowLog(logElement)) {
+                        logElement.classList.remove('hidden');
+                        visibleCount++;
+                    } else {
+                        logElement.classList.add('hidden');
+                    }
+                });
+                
+                // Update search results indicator
+                this.updateSearchIndicator(visibleCount, allLogs.length);
+            }
+            
+            // Update search results indicator
+            updateSearchIndicator(visible, total) {
+                const searchInput = document.getElementById('logSearchInput');
+                const clearBtn = document.getElementById('clearSearchBtn');
+                
+                if (this.searchTerm) {
+                    searchInput.style.borderColor = visible > 0 ? '#28a745' : '#dc3545';
+                    clearBtn.style.display = 'flex';
+                    
+                    if (visible === 0) {
+                        searchInput.placeholder = `No results for "${this.searchTerm}"`;
+                    } else {
+                        searchInput.placeholder = `${visible} results for "${this.searchTerm}"`;
+                    }
+                } else {
+                    searchInput.style.borderColor = '#ced4da';
+                    clearBtn.style.display = 'none';
+                    searchInput.placeholder = '🔍 Search logs...';
+                }
+            }
+            
+            // Highlight search terms in text
+            highlightSearchTerm(text, term) {
+                if (!term) return text;
+                
+                const regex = new RegExp(`(${term})`, 'gi');
+                return text.replace(regex, '<span class="search-highlight">$1</span>');
+            }
+        }
+
+        // Persistent Log Buffer Management
+        class PersistentLogBuffer {
+            constructor(maxLogs = 1000) {
+                this.maxLogs = maxLogs;
+                this.storageKey = 'minecraft_console_logs';
+                this.logs = this.loadFromStorage();
+            }
+            
+            // Load logs from localStorage
+            loadFromStorage() {
+                try {
+                    const stored = localStorage.getItem(this.storageKey);
+                    if (stored) {
+                        const parsed = JSON.parse(stored);
+                        // Validate the structure
+                        if (Array.isArray(parsed)) {
+                            return parsed.map(log => ({
+                                timestamp: log.timestamp || new Date().toISOString(),
+                                message: log.message || '',
+                                type: log.type || 'info',
+                                category: log.category || 'info',
+                                id: log.id || this.generateLogId()
+                            }));
+                        }
+                    }
+                } catch (e) {
+                    console.warn('Failed to load persistent logs:', e);
+                    // Clear corrupted data
+                    localStorage.removeItem(this.storageKey);
+                }
+                return [];
+            }
+            
+            // Save logs to localStorage
+            saveToStorage() {
+                try {
+                    // Only store essential data to save space
+                    const logsToStore = this.logs.map(log => ({
+                        timestamp: log.timestamp,
+                        message: log.message,
+                        type: log.type,
+                        category: log.category,
+                        id: log.id
+                    }));
+                    
+                    localStorage.setItem(this.storageKey, JSON.stringify(logsToStore));
+                } catch (e) {
+                    console.warn('Failed to save logs to storage:', e);
+                    
+                    // If storage is full, remove oldest logs and try again
+                    if (e.name === 'QuotaExceededError') {
+                        this.clearOldLogs(Math.floor(this.maxLogs / 2)); // Remove half
+                        try {
+                            localStorage.setItem(this.storageKey, JSON.stringify(this.logs));
+                        } catch (e2) {
+                            console.error('Still failed to save after cleanup:', e2);
+                        }
+                    }
+                }
+            }
+            
+            // Add new log to buffer
+            addLog(logData) {
+                const logEntry = {
+                    timestamp: logData.timestamp || new Date().toISOString(),
+                    message: logData.message,
+                    type: logData.type || 'info',
+                    category: logData.category || logFilter.classifyLogMessage(logData.message, logData.type),
+                    id: this.generateLogId()
+                };
+                
+                // Add to end of array
+                this.logs.push(logEntry);
+                
+                // Remove oldest if over limit
+                if (this.logs.length > this.maxLogs) {
+                    this.logs = this.logs.slice(-this.maxLogs);
+                }
+                
+                // Save to storage (debounced for performance)
+                this.debouncedSave();
+                
+                return logEntry;
+            }
+            
+            // Generate unique ID for each log
+            generateLogId() {
+                return Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+            }
+            
+            // Debounced save to avoid too many localStorage writes
+            debouncedSave = this.debounce(() => {
+                this.saveToStorage();
+            }, 1000);
+            
+            // Debounce utility function
+            debounce(func, wait) {
+                let timeout;
+                return function executedFunction(...args) {
+                    const later = () => {
+                        clearTimeout(timeout);
+                        func(...args);
+                    };
+                    clearTimeout(timeout);
+                    timeout = setTimeout(later, wait);
+                };
+            }
+            
+            // Get all logs
+            getAllLogs() {
+                return [...this.logs]; // Return copy to prevent mutation
+            }
+            
+            // Clear logs from storage
+            clearStoredLogs() {
+                this.logs = [];
+                localStorage.removeItem(this.storageKey);
+                addConsoleMessage('info', 'Persistent log buffer cleared');
+            }
+            
+            // Remove old logs (for memory management)
+            clearOldLogs(keepCount) {
+                if (keepCount < this.logs.length) {
+                    this.logs = this.logs.slice(-keepCount);
+                    this.saveToStorage();
+                }
+            }
+            
+            // Get storage usage info
+            getStorageInfo() {
+                const stored = localStorage.getItem(this.storageKey);
+                const sizeKB = stored ? Math.round(stored.length / 1024) : 0;
+                return {
+                    logCount: this.logs.length,
+                    maxLogs: this.maxLogs,
+                    storageKB: sizeKB,
+                    percentFull: Math.round((this.logs.length / this.maxLogs) * 100)
+                };
+            }
+        }
+
+        // Create DOM element from log data
+        function createLogElement(logEntry) {
             const consoleOutput = document.getElementById('consoleOutput');
             const messageDiv = document.createElement('div');
             
-            // Determine CSS class based on log type
-            let cssClass = 'console-line';
-            if (data.type === 'error') cssClass += ' error';
-            else if (data.type === 'warn') cssClass += ' warning';
-            else if (data.type === 'command') cssClass += ' command';
-            else cssClass += ' info';
-            
-            messageDiv.className = cssClass;
+            // Set CSS classes and data attributes
+            messageDiv.className = `console-line ${logEntry.category}`;
+            messageDiv.dataset.category = logEntry.category;
+            messageDiv.dataset.logId = logEntry.id;
             
             // Format timestamp
-            const timestamp = new Date(data.timestamp).toLocaleTimeString();
-            messageDiv.innerHTML = `<span class="timestamp">[${timestamp}]</span> ${escapeHtml(data.message)}`;
+            const timestamp = new Date(logEntry.timestamp).toLocaleTimeString();
             
+            // Apply search highlighting if needed
+            const displayMessage = logFilter.highlightSearchTerm(escapeHtml(logEntry.message), logFilter.searchTerm);
+            
+            messageDiv.innerHTML = `<span class="timestamp">[${timestamp}]</span> ${displayMessage}`;
+            
+            // Add to console
             consoleOutput.appendChild(messageDiv);
             
-            // Auto-scroll if enabled
-            if (autoScroll) {
+            // Apply current filters to new message
+            if (!logFilter.shouldShowLog(messageDiv)) {
+                messageDiv.classList.add('hidden');
+            }
+            
+            // Auto-scroll if enabled and log is visible
+            if (autoScroll && !messageDiv.classList.contains('hidden')) {
                 consoleOutput.scrollTop = consoleOutput.scrollHeight;
             }
+            
+            return messageDiv;
+        }
+
+        // Restore persistent logs on page load
+        function restorePersistentLogs() {
+            const savedLogs = persistentLogs.getAllLogs();
+            
+            if (savedLogs.length > 0) {
+                addConsoleMessage('info', `Restoring ${savedLogs.length} previous log entries...`);
+                
+                // Restore each log entry
+                savedLogs.forEach(logEntry => {
+                    createLogElement(logEntry);
+                    logFilter.updateLogCount(logEntry.category);
+                });
+                
+                // Apply current filters
+                logFilter.applyFilters();
+                
+                // Update total count
+                updateLogCount();
+                
+                // Show restoration info
+                const storageInfo = persistentLogs.getStorageInfo();
+                addConsoleMessage('success', 
+                    `Log history restored! ${storageInfo.logCount}/${storageInfo.maxLogs} logs ` +
+                    `(${storageInfo.storageKB}KB, ${storageInfo.percentFull}% full)`
+                );
+            } else {
+                addConsoleMessage('info', 'No previous log history found');
+            }
+        }
+
+        // Initialize log filter
+        const logFilter = new LogFilter();
+
+        // Initialize persistent log buffer
+        const persistentLogs = new PersistentLogBuffer(1000);
+        
+        // Helper function to add log messages from Socket.IO
+        function addLogMessage(data) {
+            // Filter out RCON noise messages (your existing code)
+            const message = data.message;
+            
+            const rconPatterns = [
+                /RCON LISTENER.*started/i,
+                /RCON Client.*started/i,
+                /RCON Client.*shutting down/i,
+                /Thread RCON Client/i,
+                /\[RCON\]/i,                    // General RCON tags
+                /^\s*$/,                        // Empty lines
+                /Connection.*established/i,      // Connection messages
+            ];
+            
+            const isRconNoise = rconPatterns.some(pattern => pattern.test(message));
+            if (isRconNoise) {
+                return;
+            }
+            
+            // Classify the log message
+            const category = logFilter.classifyLogMessage(message, data.type);
+            
+            // Store in persistent buffer
+            const logEntry = persistentLogs.addLog({
+                timestamp: data.timestamp,
+                message: message,
+                type: data.type,
+                category: category
+            });
+            
+            // Create DOM element
+            createLogElement(logEntry);
+            
+            // Update counts
+            logFilter.updateLogCount(category);
+            updateLogCount();
+        }
+
+        // Set active log filter
+        function setLogFilter(filterType) {
+            // Update active button
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.querySelector(`[data-filter="${filterType}"]`).classList.add('active');
+            
+            // Update filter state
+            logFilter.activeFilter = filterType;
+            
+            // Apply filters
+            logFilter.applyFilters();
+            
+            // Add to console message
+            addConsoleMessage('info', `Filter changed to: ${filterType}`);
+        }
+
+        // Filter logs by search term
+        function filterLogsBySearch() {
+            const searchInput = document.getElementById('logSearchInput');
+            logFilter.searchTerm = searchInput.value.trim();
+            
+            // Re-highlight all messages with new search term
+            const allLogs = document.querySelectorAll('.console-line');
+            allLogs.forEach(logElement => {
+                const timestampSpan = logElement.querySelector('.timestamp');
+                const originalText = logElement.textContent;
+                const timestampText = timestampSpan ? timestampSpan.textContent : '';
+                const messageText = originalText.replace(timestampText, '').trim();
+                
+                const highlightedMessage = logFilter.highlightSearchTerm(escapeHtml(messageText), logFilter.searchTerm);
+                
+                if (timestampSpan) {
+                    logElement.innerHTML = `${timestampSpan.outerHTML} ${highlightedMessage}`;
+                }
+            });
+            
+            // Apply filters
+            logFilter.applyFilters();
+        }
+
+        // Handle keyboard shortcuts for search
+        function handleSearchKeyboard(event) {
+            if (event.key === 'Escape') {
+                clearSearch();
+            }
+        }
+
+        // Clear search
+        function clearSearch() {
+            const searchInput = document.getElementById('logSearchInput');
+            searchInput.value = '';
+            logFilter.searchTerm = '';
+            
+            // Remove highlighting from all messages
+            const allLogs = document.querySelectorAll('.console-line');
+            allLogs.forEach(logElement => {
+                const text = logElement.innerHTML.replace(/<span class="search-highlight">(.*?)<\/span>/g, '$1');
+                logElement.innerHTML = text;
+            });
+            
+            // Apply filters
+            logFilter.applyFilters();
         }
 
         // Helper function to add console messages (local)
@@ -277,13 +786,21 @@
         }
 
         // Command input functions
+
+        // Updated sendCommand function with history support
+
         function sendCommand() {
             const commandInput = document.getElementById('commandInput');
             const command = commandInput.value.trim();
             
             if (command) {
+                // Add to command history BEFORE sending
+                commandHistory.addCommand(command);
+                
+                // Add to console display
                 addConsoleMessage('command', `> ${command}`);
                 
+                // Send to server
                 fetch('/api/command', {
                     method: 'POST',
                     headers: {
@@ -305,7 +822,21 @@
                     addConsoleMessage('error', `Failed to execute command: ${err.message}`);
                 });
                 
+                // Clear input
                 commandInput.value = '';
+                
+                // Update command history statistics display
+                function updateCommandHistoryStats() {
+                    const count = commandHistory.getCommandCount();
+                    // You can add this to your info grid or create a small indicator
+                    console.log(`Command history: ${count}/50 commands stored`);
+                }
+
+                // Show command history stats on page load
+                document.addEventListener('DOMContentLoaded', function() {
+                    updateCommandHistoryStats();
+                    addConsoleMessage('info', `Command history loaded: ${commandHistory.getCommandCount()} previous commands available`);
+                });
             }
         }
 
@@ -325,9 +856,147 @@
 
         // Initialize when page loads
         document.addEventListener('DOMContentLoaded', function() {
+            // Restore persistent logs first
+            restorePersistentLogs();
+            
+            // Then show startup messages
             addConsoleMessage('info', 'Console interface loaded');
-            addConsoleMessage('info', 'Connecting to real-time log stream...');
+            addConsoleMessage('info', `Command history loaded: ${commandHistory.getCommandCount()} previous commands available`);
+            
+            // Show buffer info
+            const storageInfo = persistentLogs.getStorageInfo();
+            addConsoleMessage('info', `Persistent log buffer: ${storageInfo.maxLogs} log capacity`);
         });
+
+        <!-- NEW COMMANDS FUNCTIONS -->
+
+        // Command History Management
+
+        class CommandHistory {
+            constructor() {
+                this.commands = this.loadFromStorage();
+                this.currentIndex = -1; // -1 means "new command"
+                this.tempCommand = ''; // Store current input when navigating
+            }
+            
+            // Load commands from localStorage
+            loadFromStorage() {
+                try {
+                    const stored = localStorage.getItem('minecraft_command_history');
+                    return stored ? JSON.parse(stored) : [];
+                } catch (e) {
+                    console.warn('Failed to load command history:', e);
+                    return [];
+                }
+            }
+            
+            // Save commands to localStorage
+            saveToStorage() {
+                try {
+                    localStorage.setItem('minecraft_command_history', JSON.stringify(this.commands));
+                } catch (e) {
+                    console.warn('Failed to save command history:', e);
+                }
+            }
+            
+            // Add new command to history
+            addCommand(command) {
+                if (!command || command.trim() === '') return;
+                
+                const trimmedCommand = command.trim();
+                
+                // Remove command if it already exists (move to end)
+                const existingIndex = this.commands.indexOf(trimmedCommand);
+                if (existingIndex !== -1) {
+                    this.commands.splice(existingIndex, 1);
+                }
+                
+                // Add to end of array
+                this.commands.push(trimmedCommand);
+                
+                // Keep only last 50 commands
+                if (this.commands.length > 50) {
+                    this.commands = this.commands.slice(-50);
+                }
+                
+                // Reset navigation state
+                this.currentIndex = -1;
+                this.tempCommand = '';
+                
+                // Save to storage
+                this.saveToStorage();
+            }
+            
+            // Navigate to previous command (↑)
+            navigateUp() {
+                if (this.commands.length === 0) return null;
+                
+                // If at newest position, store current input
+                if (this.currentIndex === -1) {
+                    this.tempCommand = document.getElementById('commandInput').value;
+                }
+                
+                // Move up in history (towards older commands)
+                if (this.currentIndex < this.commands.length - 1) {
+                    this.currentIndex++;
+                }
+                
+                return this.commands[this.commands.length - 1 - this.currentIndex];
+            }
+            
+            // Navigate to next command (↓)
+            navigateDown() {
+                if (this.commands.length === 0) return null;
+                
+                // Move down in history (towards newer commands)
+                if (this.currentIndex > -1) {
+                    this.currentIndex--;
+                }
+                
+                // If back to newest position, return temp command
+                if (this.currentIndex === -1) {
+                    return this.tempCommand;
+                }
+                
+                return this.commands[this.commands.length - 1 - this.currentIndex];
+            }
+            
+            // Get current command count for display
+            getCommandCount() {
+                return this.commands.length;
+            }
+        }
+        
+        // Initialize command history
+        const commandHistory = new CommandHistory();
+
+        // Handle arrow key navigation for command history
+        function handleHistoryNavigation(event) {
+            const commandInput = document.getElementById('commandInput');
+            
+            // Handle arrow keys
+            if (event.key === 'ArrowUp') {
+                event.preventDefault(); // Prevent cursor movement
+                const command = commandHistory.navigateUp();
+                if (command !== null) {
+                    commandInput.value = command;
+                    // Move cursor to end
+                    commandInput.setSelectionRange(commandInput.value.length, commandInput.value.length);
+                }
+                return false;
+            }
+            
+            if (event.key === 'ArrowDown') {
+                event.preventDefault(); // Prevent cursor movement
+                const command = commandHistory.navigateDown();
+                if (command !== null) {
+                    commandInput.value = command;
+                    // Move cursor to end
+                    commandInput.setSelectionRange(commandInput.value.length, commandInput.value.length);
+                }
+                return false;
+            }
+        }
     </script>
 </body>
 </html>
